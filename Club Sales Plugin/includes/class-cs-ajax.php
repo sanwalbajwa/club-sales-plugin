@@ -507,28 +507,64 @@ public static function handle_add_sale() {
         $sale_ids = array_map('intval', (array) $_POST['sale_ids']);
     }
     
+    // Log for debugging
+    error_log("Processing Klarna checkout for sale IDs: " . implode(', ', $sale_ids));
+    
     try {
         $klarna_url = CS_Klarna::create_order($sale_ids);
+        
+        // Enhanced logging
+        error_log("Klarna checkout URL received: " . $klarna_url);
+        
+        // More flexible URL validation
+        if (empty($klarna_url)) {
+            error_log("Empty Klarna URL received");
+            wp_send_json_error('Empty checkout URL received from Klarna');
+            return;
+        }
+        
+        // Check if it's a valid URL OR a data URL (for HTML snippets)
+        $is_valid_url = filter_var($klarna_url, FILTER_VALIDATE_URL);
+        $is_data_url = strpos($klarna_url, 'data:') === 0;
+        $has_klarna_domain = strpos($klarna_url, 'klarna') !== false;
+        
+        if (!$is_valid_url && !$is_data_url && !$has_klarna_domain) {
+            error_log("Invalid Klarna URL format: " . $klarna_url);
+            wp_send_json_error('Invalid checkout URL format received from Klarna: ' . substr($klarna_url, 0, 100));
+            return;
+        }
         
         // Update status of processed sales
         global $wpdb;
         $ids_string = implode(',', array_map('intval', $sale_ids));
-        $wpdb->query(
+        $updated_rows = $wpdb->query(
             "UPDATE {$wpdb->prefix}cs_sales 
              SET status = 'processing' 
              WHERE id IN ($ids_string)"
         );
         
+        error_log("Updated {$updated_rows} sales to processing status");
+        
         // Update stats timestamp for current user
         $current_user_id = get_current_user_id();
         update_user_meta($current_user_id, 'cs_stats_last_updated', time());
         
-        wp_send_json_success(array(
+        // Enhanced response with better structure
+        $response_data = array(
             'redirect_url' => $klarna_url,
             'processed_count' => count($sale_ids),
-            'stats_updated' => true
-        ));
+            'stats_updated' => true,
+            'sale_ids' => $sale_ids,
+            'timestamp' => time(),
+            'url_type' => $is_data_url ? 'html_snippet' : 'direct_url'
+        );
+        
+        error_log("Sending success response: " . json_encode($response_data));
+        
+        wp_send_json_success($response_data);
+        
     } catch (Exception $e) {
+        error_log("Klarna checkout error: " . $e->getMessage());
         wp_send_json_error('Klarna error: ' . $e->getMessage());
     }
 }
