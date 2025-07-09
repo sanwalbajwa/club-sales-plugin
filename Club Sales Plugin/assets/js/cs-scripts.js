@@ -1495,6 +1495,9 @@ function populateEditOrderForm(order) {
 	function processKlarnaCheckout(saleIds) {
     console.log("Processing sale IDs:", saleIds);
     
+    // Show loading state
+    $('#klarna-checkout-selected-btn').text('Processing...').prop('disabled', true);
+    
     $.ajax({
         url: csAjax.ajaxurl,
         type: 'POST',
@@ -1503,29 +1506,59 @@ function populateEditOrderForm(order) {
             nonce: csAjax.nonce,
             sale_ids: saleIds
         },
-        beforeSend: function() {
-            $('#klarna-checkout-selected-btn').text('Processing...').prop('disabled', true);
-        },
+        timeout: 30000, // 30 second timeout
         success: function(response) {
-            if (response.success && response.data.redirect_url) {
+            console.log("Klarna response:", response);
+            
+            if (response.success && response.data && response.data.redirect_url) {
                 // Trigger stats update if indicated
                 if (response.data.stats_updated) {
                     triggerStatsUpdate();
                 }
                 
                 // Show success message
-                alert(`Successfully processed ${response.data.processed_count} order(s). Redirecting to Klarna checkout...`);
+                const processedCount = response.data.processed_count || 1;
+                alert(`Successfully processed ${processedCount} order(s). Redirecting to Klarna checkout...`);
                 
-                // Redirect to Klarna checkout page
-                window.location.href = response.data.redirect_url;
+                // Enhanced redirect with multiple fallback methods
+                const redirectUrl = response.data.redirect_url;
+                console.log("Redirecting to:", redirectUrl);
+                
+                // Method 1: Direct redirect
+                try {
+                    window.location.href = redirectUrl;
+                } catch (error) {
+                    console.error("Direct redirect failed:", error);
+                    
+                    // Method 2: Fallback redirect
+                    setTimeout(function() {
+                        window.location.replace(redirectUrl);
+                    }, 100);
+                }
+                
+                // Method 3: Ultimate fallback - open in new window if redirect fails
+                setTimeout(function() {
+                    if (window.location.href.indexOf(redirectUrl) === -1) {
+                        console.log("Redirect failed, opening in new window");
+                        window.open(redirectUrl, '_blank');
+                    }
+                }, 2000);
+                
             } else {
-                alert('Error: ' + (response.data || 'Could not process orders'));
-                $('#klarna-checkout-selected-btn').text('Slutför Order').prop('disabled', false);
+                console.error("Invalid response structure:", response);
+                alert('Error: ' + (response.data || 'Could not process orders - invalid response'));
+                $('#klarna-checkout-selected-btn').text('Process Orders').prop('disabled', false);
             }
         },
-        error: function() {
+        error: function(xhr, status, error) {
+            console.error("AJAX error:", {
+                status: status,
+                error: error,
+                responseText: xhr.responseText
+            });
+            
             alert('Error: Could not process orders. Please try again.');
-            $('#klarna-checkout-selected-btn').text('Slutför Order').prop('disabled', false);
+            $('#klarna-checkout-selected-btn').text('Process Orders').prop('disabled', false);
         }
     });
 }
