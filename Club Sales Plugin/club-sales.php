@@ -5,7 +5,7 @@ Plugin URI: https://yourwebsite.com/club-sales
 Description: A comprehensive sales tracking system for clubs and schools with Klarna integration and child user management.
 Version: 2.0.0
 Author: Aftab
-Author URI: https://sanwalbajwa.live
+Author URI: https://yourwebsite.com
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: club-sales
