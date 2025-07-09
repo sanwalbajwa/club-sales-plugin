@@ -1,0 +1,35 @@
+# WordPress specific files
+*.log
+wp-config.php
+wp-content/advanced-cache.php
+wp-content/backup-db/
+wp-content/backups/
+wp-content/blogs.dir/
+wp-content/cache/
+wp-content/upgrade/
+wp-content/uploads/
+wp-content/mu-plugins/
+wp-content/wp-cache-config.php
+wp-content/plugins/hello.php
+
+# IDE and System Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Node modules and build files
+node_modules/
+build/
+dist/
+
+# Composer
+vendor/
+composer.phar
+
+# Temporary files
+*.swp
+*.swo
+*~ 
