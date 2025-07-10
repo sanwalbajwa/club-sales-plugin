@@ -508,29 +508,26 @@ public static function handle_add_sale() {
     }
     
     // Log for debugging
-    error_log("Processing Klarna checkout for sale IDs: " . implode(', ', $sale_ids));
+    error_log("Processing checkout for sale IDs: " . implode(', ', $sale_ids));
     
     try {
-        $klarna_url = CS_Klarna::create_order($sale_ids);
+        // Create WooCommerce order instead of Klarna
+        $checkout_url = CS_Klarna::create_order($sale_ids);
         
         // Enhanced logging
-        error_log("Klarna checkout URL received: " . $klarna_url);
+        error_log("WooCommerce checkout URL created: " . $checkout_url);
         
-        // More flexible URL validation
-        if (empty($klarna_url)) {
-            error_log("Empty Klarna URL received");
-            wp_send_json_error('Empty checkout URL received from Klarna');
+        // Validate the checkout URL
+        if (empty($checkout_url)) {
+            error_log("Empty checkout URL received");
+            wp_send_json_error('Empty checkout URL received');
             return;
         }
         
-        // Check if it's a valid URL OR a data URL (for HTML snippets)
-        $is_valid_url = filter_var($klarna_url, FILTER_VALIDATE_URL);
-        $is_data_url = strpos($klarna_url, 'data:') === 0;
-        $has_klarna_domain = strpos($klarna_url, 'klarna') !== false;
-        
-        if (!$is_valid_url && !$is_data_url && !$has_klarna_domain) {
-            error_log("Invalid Klarna URL format: " . $klarna_url);
-            wp_send_json_error('Invalid checkout URL format received from Klarna: ' . substr($klarna_url, 0, 100));
+        // Check if it's a valid URL
+        if (!filter_var($checkout_url, FILTER_VALIDATE_URL)) {
+            error_log("Invalid checkout URL format: " . $checkout_url);
+            wp_send_json_error('Invalid checkout URL format: ' . $checkout_url);
             return;
         }
         
@@ -549,14 +546,14 @@ public static function handle_add_sale() {
         $current_user_id = get_current_user_id();
         update_user_meta($current_user_id, 'cs_stats_last_updated', time());
         
-        // Enhanced response with better structure
+        // Enhanced response
         $response_data = array(
-            'redirect_url' => $klarna_url,
+            'redirect_url' => $checkout_url,
             'processed_count' => count($sale_ids),
             'stats_updated' => true,
             'sale_ids' => $sale_ids,
             'timestamp' => time(),
-            'url_type' => $is_data_url ? 'html_snippet' : 'direct_url'
+            'checkout_type' => 'woocommerce'
         );
         
         error_log("Sending success response: " . json_encode($response_data));
@@ -564,8 +561,8 @@ public static function handle_add_sale() {
         wp_send_json_success($response_data);
         
     } catch (Exception $e) {
-        error_log("Klarna checkout error: " . $e->getMessage());
-        wp_send_json_error('Klarna error: ' . $e->getMessage());
+        error_log("Checkout error: " . $e->getMessage());
+        wp_send_json_error('Checkout error: ' . $e->getMessage());
     }
 }
 	public static function handle_get_sales() {
