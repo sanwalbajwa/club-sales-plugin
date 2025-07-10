@@ -1493,7 +1493,7 @@ function populateEditOrderForm(order) {
 }
 	// Process Klarna checkout
 	function processKlarnaCheckout(saleIds) {
-    console.log("Processing sale IDs:", saleIds);
+    console.log("Processing checkout for sale IDs:", saleIds);
     
     // Show loading state
     $('#klarna-checkout-selected-btn').text('Processing...').prop('disabled', true);
@@ -1508,7 +1508,7 @@ function populateEditOrderForm(order) {
         },
         timeout: 30000, // 30 second timeout
         success: function(response) {
-            console.log("Klarna response:", response);
+            console.log("Checkout response:", response);
             
             if (response.success && response.data && response.data.redirect_url) {
                 // Trigger stats update if indicated
@@ -1518,23 +1518,20 @@ function populateEditOrderForm(order) {
                 
                 // Show success message
                 const processedCount = response.data.processed_count || 1;
-                alert(`Successfully processed ${processedCount} order(s). Redirecting to checkout...`);
+                const checkoutType = response.data.checkout_type || 'checkout';
                 
-                // Handle different types of URLs
+                if (checkoutType === 'woocommerce') {
+                    alert(`Successfully created WooCommerce order for ${processedCount} sale(s). Redirecting to checkout...`);
+                } else {
+                    alert(`Successfully processed ${processedCount} order(s). Redirecting to checkout...`);
+                }
+                
+                // Handle the redirect URL
                 const redirectUrl = response.data.redirect_url;
                 console.log("Redirecting to:", redirectUrl);
                 
-                // Check if it's a data URL (HTML snippet)
-                if (redirectUrl.startsWith('data:')) {
-                    // Create a new window/tab with the HTML content
-                    const newWindow = window.open('', '_blank');
-                    const htmlContent = decodeURIComponent(redirectUrl.substring(redirectUrl.indexOf(',') + 1));
-                    newWindow.document.write(htmlContent);
-                    newWindow.document.close();
-                } else {
-                    // Regular URL redirect
-                    window.location.href = redirectUrl;
-                }
+                // Direct redirect to WooCommerce checkout
+                window.location.href = redirectUrl;
                 
             } else {
                 console.error("Invalid response structure:", response);
@@ -1549,7 +1546,22 @@ function populateEditOrderForm(order) {
                 responseText: xhr.responseText
             });
             
-            alert('Error: Could not process orders. Please try again.');
+            let errorMessage = 'Error: Could not process orders. Please try again.';
+            
+            // Try to extract more specific error message
+            if (xhr.responseText) {
+                try {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    if (errorResponse.data) {
+                        errorMessage = 'Error: ' + errorResponse.data;
+                    }
+                } catch (e) {
+                    // If JSON parsing fails, use the raw response
+                    errorMessage = 'Error: ' + xhr.responseText.substring(0, 100);
+                }
+            }
+            
+            alert(errorMessage);
             $('#klarna-checkout-selected-btn').text('Process Orders').prop('disabled', false);
         }
     });
@@ -1642,59 +1654,58 @@ function populateEditOrderForm(order) {
 
 	// Initialize Klarna checkout
 	function initKlarnaCheckout() {
-		$('#klarna-checkout-btn').on('click', function() {
-			if (selectedProducts.length === 0) {
-				alert('Please select at least one product');
-				return;
-			}
+    $('#klarna-checkout-btn').on('click', function() {
+        if (selectedProducts.length === 0) {
+            alert('Please select at least one product');
+            return;
+        }
 
-			// First save the sale to get sale ID
-			const formData = {
-				action: 'cs_add_sale',
-				nonce: csAjax.nonce,
-				customer_name: $('#customer_name').val(),
-				email: $('#email').val(), 
-				phone: $('#phone').val(),
-				address: $('#address').val(),
-				total_amount: $('#total_amount').val(),
-				sale_date: $('#sale_date').val(),
-				notes: $('#notes').val(),
-				products: JSON.stringify(selectedProducts)
-			};
+        // First save the sale to get sale ID
+        const formData = {
+            action: 'cs_add_sale',
+            nonce: csAjax.nonce,
+            customer_name: $('#customer_name').val(),
+            email: $('#email').val(), 
+            phone: $('#phone').val(),
+            address: $('#address').val(),
+            total_amount: $('#total_amount').val(),
+            sale_date: $('#sale_date').val(),
+            notes: $('#notes').val(),
+            products: JSON.stringify(selectedProducts)
+        };
 
-			// Validate form
-			if (!formData.customer_name || !formData.email || !formData.phone || !formData.address) {
-				alert('Please fill in all required fields');
-				return;
-			}
+        // Validate form
+        if (!formData.customer_name || !formData.email || !formData.phone || !formData.address) {
+            alert('Please fill in all required fields');
+            return;
+        }
 
-			$.ajax({
-				url: csAjax.ajaxurl,
-				type: 'POST',
-				data: formData,
-				beforeSend: function() {
-					$('#klarna-checkout-btn').text('Processing...').prop('disabled', true);
-				},
-				success: function(response) {
-					if (response.success && response.data.sale_id) {
-						// Trigger stats update
-						triggerStatsUpdate();
-						
-						// Process Klarna checkout with the new sale ID
-						processKlarnaCheckout([response.data.sale_id]);
-					} else {
-						alert('Error: ' + (response.data || 'Could not add sale'));
-						$('#klarna-checkout-btn').text('Continue to Klarna Checkout').prop('disabled', false);
-					}
-				},
-				error: function() {
-					alert('Error: Could not add sale. Please try again.');
-					$('#klarna-checkout-btn').text('Continue to Klarna Checkout').prop('disabled', false);
-				}
-			});
-		});
-	}
-
+        $.ajax({
+            url: csAjax.ajaxurl,
+            type: 'POST',
+            data: formData,
+            beforeSend: function() {
+                $('#klarna-checkout-btn').text('Processing...').prop('disabled', true);
+            },
+            success: function(response) {
+                if (response.success && response.data.sale_id) {
+                    // Trigger stats update
+                    triggerStatsUpdate();
+                    
+                    // Process checkout with the new sale ID
+                    processKlarnaCheckout([response.data.sale_id]);
+                } else {
+                    alert('Error: ' + (response.data || 'Could not add sale'));
+                    $('#klarna-checkout-btn').text('Continue to Checkout').prop('disabled', false);
+                }
+            },
+            error: function() {
+                alert('Error: Could not add sale. Please try again.');
+                $('#klarna-checkout-btn').text('Continue to Checkout').prop('disabled', false);
+            }
+        });
+    });
+}
 	// Initialize period controls for chart
 	function initChartControls() {
 		$('.cs-chart-period').on('click', function() {
