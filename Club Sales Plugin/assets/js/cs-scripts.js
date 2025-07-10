@@ -1518,31 +1518,23 @@ function populateEditOrderForm(order) {
                 
                 // Show success message
                 const processedCount = response.data.processed_count || 1;
-                alert(`Successfully processed ${processedCount} order(s). Redirecting to Klarna checkout...`);
+                alert(`Successfully processed ${processedCount} order(s). Redirecting to checkout...`);
                 
-                // Enhanced redirect with multiple fallback methods
+                // Handle different types of URLs
                 const redirectUrl = response.data.redirect_url;
                 console.log("Redirecting to:", redirectUrl);
                 
-                // Method 1: Direct redirect
-                try {
+                // Check if it's a data URL (HTML snippet)
+                if (redirectUrl.startsWith('data:')) {
+                    // Create a new window/tab with the HTML content
+                    const newWindow = window.open('', '_blank');
+                    const htmlContent = decodeURIComponent(redirectUrl.substring(redirectUrl.indexOf(',') + 1));
+                    newWindow.document.write(htmlContent);
+                    newWindow.document.close();
+                } else {
+                    // Regular URL redirect
                     window.location.href = redirectUrl;
-                } catch (error) {
-                    console.error("Direct redirect failed:", error);
-                    
-                    // Method 2: Fallback redirect
-                    setTimeout(function() {
-                        window.location.replace(redirectUrl);
-                    }, 100);
                 }
-                
-                // Method 3: Ultimate fallback - open in new window if redirect fails
-                setTimeout(function() {
-                    if (window.location.href.indexOf(redirectUrl) === -1) {
-                        console.log("Redirect failed, opening in new window");
-                        window.open(redirectUrl, '_blank');
-                    }
-                }, 2000);
                 
             } else {
                 console.error("Invalid response structure:", response);
