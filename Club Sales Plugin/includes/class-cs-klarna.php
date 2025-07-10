@@ -12,16 +12,6 @@ class CS_Klarna {
         );
     }
     
-    private static function get_api_url() {
-        $credentials = self::get_api_credentials();
-        
-        if ($credentials['test_mode']) {
-            return 'https://api.playground.klarna.com/';
-        } else {
-            return 'https://api.klarna.com/';
-        }
-    }
-    
     public static function create_order($sale_ids) {
         global $wpdb;
         
@@ -29,6 +19,7 @@ class CS_Klarna {
             throw new Exception('No sales provided');
         }
         
+        // Get the sales data
         $sale_ids_str = implode(',', array_map('intval', $sale_ids));
         $sales = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}cs_sales WHERE id IN ($sale_ids_str)");
         
@@ -36,267 +27,366 @@ class CS_Klarna {
             throw new Exception('No sales found');
         }
         
-        $credentials = self::get_api_credentials();
-        
-        if (empty($credentials['merchant_id']) || empty($credentials['shared_secret'])) {
-            throw new Exception('Klarna API credentials not configured');
-        }
-        
-        // Create a cart from the sales
-        $order_lines = array();
-        $total_amount = 0;
-        
-        foreach ($sales as $sale) {
-            $products = json_decode($sale->products, true);
+        try {
+            // Clear the cart first
+            if (function_exists('WC')) {
+                WC()->cart->empty_cart();
+            }
             
-            if (!empty($products)) {
-                foreach ($products as $product) {
-                    $quantity = isset($product['quantity']) ? intval($product['quantity']) : 1;
-                    $unit_price = floatval($product['price']);
-                    $line_total = $unit_price * $quantity;
-                    
-                    $order_lines[] = array(
-                        'name' => $product['name'],
-                        'quantity' => $quantity,
-                        'unit_price' => intval($unit_price * 100), // Klarna uses amounts in cents
-                        'tax_rate' => 2500, // 25% tax rate (Sweden)
-                        'total_amount' => intval($line_total * 100),
-                        'total_tax_amount' => intval($line_total * 0.2 * 100) // 20% of price is tax
-                    );
-                    
-                    $total_amount += $line_total;
-                }
-            } else {
-                // If no products, just add the total as a single line
-                $order_lines[] = array(
-                    'name' => 'Sale #' . $sale->id,
-                    'quantity' => 1,
-                    'unit_price' => intval($sale->sale_amount * 100),
-                    'tax_rate' => 2500,
-                    'total_amount' => intval($sale->sale_amount * 100),
-                    'total_tax_amount' => intval($sale->sale_amount * 0.2 * 100)
-                );
+            // Add products to cart and set customer data
+            $checkout_url = self::add_products_to_cart_and_checkout($sales);
+            
+            if ($checkout_url) {
+                // Update the original sales with processing status
+                $wpdb->query($wpdb->prepare(
+                    "UPDATE {$wpdb->prefix}cs_sales SET status = 'processing' WHERE id IN ($sale_ids_str)"
+                ));
                 
-                $total_amount += $sale->sale_amount;
-            }
-        }
-        
-        // Create Klarna order
-        $order_data = array(
-            'purchase_country' => 'SE',
-            'purchase_currency' => 'SEK',
-            'locale' => 'sv-SE',
-            'order_amount' => intval($total_amount * 100),
-            'order_tax_amount' => intval($total_amount * 0.2 * 100),
-            'order_lines' => $order_lines,
-            'merchant_urls' => array(
-                'terms' => site_url('/terms/'),
-                'checkout' => site_url('/checkout/'),
-                'confirmation' => site_url('/confirmation/'),
-                'push' => site_url('/wc-api/klarna_push/'),
-            )
-        );
-        
-        // Call Klarna API
-        $api_url = self::get_api_url() . 'checkout/v3/orders';
-        
-        error_log("=== KLARNA API CALL ===");
-        error_log("URL: " . $api_url);
-        error_log("Order data: " . json_encode($order_data, JSON_PRETTY_PRINT));
-        
-        $response = wp_remote_post($api_url, array(
-            'method' => 'POST',
-            'headers' => array(
-                'Content-Type' => 'application/json',
-                'Authorization' => 'Basic ' . base64_encode($credentials['merchant_id'] . ':' . $credentials['shared_secret'])
-            ),
-            'body' => json_encode($order_data),
-            'timeout' => 30
-        ));
-        
-        if (is_wp_error($response)) {
-            error_log("Klarna API connection error: " . $response->get_error_message());
-            throw new Exception('Klarna API connection error: ' . $response->get_error_message());
-        }
-        
-        $response_code = wp_remote_retrieve_response_code($response);
-        $response_body = wp_remote_retrieve_body($response);
-        $body = json_decode($response_body, true);
-        
-        error_log("=== KLARNA API RESPONSE ===");
-        error_log("Response code: " . $response_code);
-        error_log("Response body: " . $response_body);
-        error_log("Parsed body: " . print_r($body, true));
-        
-        if ($response_code !== 200 && $response_code !== 201) {
-            $error_message = 'Klarna API error (Code: ' . $response_code . ')';
-            
-            if (isset($body['error_code'])) {
-                $error_message .= ' - Error Code: ' . $body['error_code'];
-            }
-            if (isset($body['error_message'])) {
-                $error_message .= ' - Message: ' . $body['error_message'];
-            }
-            if (isset($body['error_messages'])) {
-                $error_message .= ' - Details: ' . implode(', ', $body['error_messages']);
+                return $checkout_url;
+            } else {
+                throw new Exception('Failed to prepare checkout');
             }
             
-            error_log("Klarna API error: " . $error_message);
-            throw new Exception($error_message);
+        } catch (Exception $e) {
+            error_log("Order creation error: " . $e->getMessage());
+            throw new Exception('Order creation failed: ' . $e->getMessage());
         }
-        
-        // Enhanced URL extraction logic
-        $checkout_url = self::extract_checkout_url($body);
-        
-        if (empty($checkout_url)) {
-            error_log("=== KLARNA RESPONSE ANALYSIS ===");
-            error_log("Available fields: " . implode(', ', array_keys($body)));
-            error_log("Full response structure: " . print_r($body, true));
-            
-            // Try to create a custom checkout URL if we have an order ID
-            if (isset($body['order_id'])) {
-                $checkout_url = self::construct_checkout_url($body['order_id']);
-                error_log("Constructed checkout URL: " . $checkout_url);
-            }
-            
-            if (empty($checkout_url)) {
-                throw new Exception('Could not extract checkout URL from Klarna response. Available fields: ' . implode(', ', array_keys($body)));
-            }
-        }
-        
-        // Update sales with Klarna order ID
-        if (!empty($body['order_id'])) {
-            $wpdb->query($wpdb->prepare(
-                "UPDATE {$wpdb->prefix}cs_sales SET klarna_order_id = %s WHERE id IN ($sale_ids_str)",
-                $body['order_id']
-            ));
-            error_log("Updated sales with Klarna order ID: " . $body['order_id']);
-        }
-        
-        error_log("=== FINAL RESULT ===");
-        error_log("Checkout URL: " . $checkout_url);
-        error_log("URL validation: " . (filter_var($checkout_url, FILTER_VALIDATE_URL) ? 'VALID' : 'INVALID'));
-        
-        return $checkout_url;
     }
     
     /**
-     * Extract checkout URL from Klarna response
+     * Add products to cart and return checkout URL
      */
-    private static function extract_checkout_url($body) {
-        $checkout_url = '';
+    private static function add_products_to_cart_and_checkout($sales) {
+        if (!function_exists('WC')) {
+            throw new Exception('WooCommerce is not active');
+        }
         
-        // Try different possible URL fields
-        $url_fields = array(
-            'checkout_url',
-            'gui.snippet',
-            'gui.checkout_url', 
-            'html_snippet',
-            'checkout.html_snippet',
-            'checkout_snippet',
-            'snippet'
-        );
+        error_log("=== ADDING PRODUCTS TO CART (CHILD ORDER FIX) ===");
         
-        foreach ($url_fields as $field) {
-            if (strpos($field, '.') !== false) {
-                // Handle nested fields like 'gui.snippet'
-                $parts = explode('.', $field);
-                $current = $body;
+        $customer_data = null;
+        $products_added = 0;
+        
+        // Process each sale
+        foreach ($sales as $sale) {
+            error_log("Processing sale ID: " . $sale->id . " from user ID: " . $sale->user_id);
+            
+            // Get customer data from first sale
+            if (!$customer_data) {
+                $customer_data = array(
+                    'customer_name' => $sale->customer_name,
+                    'email' => $sale->email,
+                    'phone' => $sale->phone,
+                    'address' => $sale->address
+                );
+                error_log("Customer data: " . print_r($customer_data, true));
+            }
+            
+            // Parse products from sale
+            $products_json = $sale->products;
+            
+            // Handle escaped JSON
+            if (strpos($products_json, '\"') !== false) {
+                $products_json = stripslashes($products_json);
+                error_log("Removed slashes from JSON");
+            }
+            
+            error_log("Products JSON: " . $products_json);
+            
+            $products = json_decode($products_json, true);
+            
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                error_log("JSON parse error for sale ID " . $sale->id . ": " . json_last_error_msg());
                 
-                foreach ($parts as $part) {
-                    if (isset($current[$part])) {
-                        $current = $current[$part];
-                    } else {
-                        $current = null;
-                        break;
+                // Try to create a fallback product from the sale amount
+                $fallback_added = self::add_fallback_product_to_cart($sale);
+                if ($fallback_added) {
+                    $products_added++;
+                }
+                continue;
+            }
+            
+            error_log("Parsed products: " . print_r($products, true));
+            
+            // Add products to cart
+            if (!empty($products) && is_array($products)) {
+                foreach ($products as $product_data) {
+                    $product_id = isset($product_data['id']) ? intval($product_data['id']) : 0;
+                    $quantity = isset($product_data['quantity']) ? intval($product_data['quantity']) : 1;
+                    
+                    // Handle different price fields that might be present
+                    $price = 0;
+                    if (isset($product_data['price'])) {
+                        $price = floatval($product_data['price']);
+                    } elseif (isset($product_data['total_price'])) {
+                        $price = floatval($product_data['total_price']);
+                    } elseif (isset($product_data['sale_price'])) {
+                        $price = floatval($product_data['sale_price']);
+                    }
+                    
+                    $product_name = isset($product_data['name']) ? $product_data['name'] : 'Unknown Product';
+                    
+                    error_log("Product details: ID={$product_id}, Name={$product_name}, Qty={$quantity}, Price={$price}");
+                    
+                    // Validate product data
+                    if ($product_id <= 0) {
+                        error_log("Invalid product ID: {$product_id}, creating generic product");
+                        
+                        // Create a generic product with the name and price
+                        $generic_added = self::add_generic_product_to_cart($product_name, $price, $quantity);
+                        if ($generic_added) {
+                            $products_added++;
+                        }
+                        continue;
+                    }
+                    
+                    if ($quantity <= 0) {
+                        error_log("Invalid quantity: {$quantity}, setting to 1");
+                        $quantity = 1;
+                    }
+                    
+                    if ($price <= 0) {
+                        error_log("Invalid price: {$price}, trying to get from WooCommerce product");
+                        
+                        // Try to get price from WooCommerce product
+                        $wc_product = wc_get_product($product_id);
+                        if ($wc_product) {
+                            $price = $wc_product->get_price();
+                            error_log("Got price from WooCommerce: {$price}");
+                        }
+                        
+                        if ($price <= 0) {
+                            error_log("Still no valid price, skipping product");
+                            continue;
+                        }
+                    }
+                    
+                    // Try to add to cart
+                    $cart_added = self::add_single_product_to_cart($product_id, $product_name, $price, $quantity);
+                    if ($cart_added) {
+                        $products_added++;
                     }
                 }
+            } else {
+                error_log("No valid products array found, creating fallback from sale amount");
                 
-                if (!empty($current)) {
-                    $checkout_url = $current;
-                    error_log("Found checkout URL in field: " . $field);
-                    break;
-                }
-            } else {
-                // Handle direct fields
-                if (!empty($body[$field])) {
-                    $checkout_url = $body[$field];
-                    error_log("Found checkout URL in field: " . $field);
-                    break;
+                // Create fallback product from sale amount
+                $fallback_added = self::add_fallback_product_to_cart($sale);
+                if ($fallback_added) {
+                    $products_added++;
                 }
             }
         }
         
-        // If we got HTML snippet, we need to extract the actual URL or handle it differently
-        if (!empty($checkout_url) && strpos($checkout_url, '<') !== false) {
-            // This is HTML snippet, extract URL from it
-            $extracted_url = self::extract_url_from_html($checkout_url);
-            if (!empty($extracted_url)) {
-                $checkout_url = $extracted_url;
+        error_log("Total products added to cart: " . $products_added);
+        
+        if ($products_added === 0) {
+            // Last resort: create a generic "Club Sales Order" product
+            error_log("No products added, creating last resort product");
+            
+            $total_amount = array_sum(array_column($sales, 'sale_amount'));
+            $generic_added = self::add_generic_product_to_cart('Club Sales Order', $total_amount, 1);
+            
+            if ($generic_added) {
+                $products_added = 1;
             } else {
-                // Create a data URL for the HTML snippet
-                $checkout_url = 'data:text/html;charset=utf-8,' . urlencode($checkout_url);
+                throw new Exception('No products could be added to cart');
             }
         }
         
-        return $checkout_url;
+        // Store customer data in session for checkout
+        if ($customer_data) {
+            self::store_customer_data_in_session($customer_data);
+        }
+        
+        // Return checkout URL
+        return wc_get_checkout_url();
+    }
+	
+	private static function add_fallback_product_to_cart($sale) {
+        $product_name = "Sale #{$sale->id} - {$sale->customer_name}";
+        $price = floatval($sale->sale_amount);
+        $quantity = 1;
+        
+        error_log("Creating fallback product from sale: {$product_name}, Amount: {$price}");
+        
+        return self::add_generic_product_to_cart($product_name, $price, $quantity);
+    }
+    private static function add_single_product_to_cart($product_id, $product_name, $price, $quantity) {
+        try {
+            // Check if WooCommerce product exists
+            $wc_product = wc_get_product($product_id);
+            
+            if ($wc_product && $wc_product->exists() && $wc_product->is_purchasable()) {
+                error_log("Adding existing WooCommerce product {$product_id}");
+                
+                // Add existing WooCommerce product to cart
+                $cart_item_data = array(
+                    'club_sales_price' => $price,
+                    'club_sales_original' => true,
+                    'club_sales_name' => $product_name
+                );
+                
+                $cart_item_key = WC()->cart->add_to_cart($product_id, $quantity, 0, array(), $cart_item_data);
+                
+                if ($cart_item_key) {
+                    error_log("Successfully added WooCommerce product {$product_id} to cart");
+                    return true;
+                } else {
+                    error_log("Failed to add WooCommerce product {$product_id} to cart");
+                }
+            } else {
+                error_log("WooCommerce product {$product_id} not found or not purchasable");
+            }
+            
+            // If we can't add the existing product, create a temporary one
+            return self::add_generic_product_to_cart($product_name, $price, $quantity);
+            
+        } catch (Exception $e) {
+            error_log("Error adding product to cart: " . $e->getMessage());
+            return self::add_generic_product_to_cart($product_name, $price, $quantity);
+        }
+    }
+	
+	private static function add_generic_product_to_cart($product_name, $price, $quantity) {
+        try {
+            error_log("Creating generic product: {$product_name}, Price: {$price}, Qty: {$quantity}");
+            
+            // Create temporary product
+            $temp_product_id = self::create_temporary_product($product_name, $price);
+            
+            if ($temp_product_id) {
+                $cart_item_data = array(
+                    'club_sales_temp_product' => true,
+                    'club_sales_original_name' => $product_name,
+                    'club_sales_price' => $price
+                );
+                
+                $cart_item_key = WC()->cart->add_to_cart($temp_product_id, $quantity, 0, array(), $cart_item_data);
+                
+                if ($cart_item_key) {
+                    error_log("Successfully added temporary product {$temp_product_id} to cart");
+                    return true;
+                } else {
+                    error_log("Failed to add temporary product {$temp_product_id} to cart");
+                }
+            }
+            
+            return false;
+            
+        } catch (Exception $e) {
+            error_log("Error creating generic product: " . $e->getMessage());
+            return false;
+        }
+    }
+    /**
+     * Create a temporary simple product for checkout
+     */
+    private static function create_temporary_product($name, $price) {
+        try {
+            $product = new WC_Product_Simple();
+            $product->set_name($name);
+            $product->set_status('private'); // Make it private
+            $product->set_regular_price($price);
+            $product->set_price($price);
+            $product->set_manage_stock(false);
+            $product->set_stock_status('instock');
+            $product->set_virtual(true); // Virtual to avoid shipping
+            $product->set_downloadable(false);
+            $product->set_sold_individually(false);
+            
+            // Add meta to identify as club sales temp product
+            $product->add_meta_data('_club_sales_temp_product', 'yes', true);
+            $product->add_meta_data('_club_sales_created', time(), true);
+            
+            $product_id = $product->save();
+            
+            if ($product_id) {
+                error_log("Created temporary product: {$product_id} - {$name} - {$price}");
+                return $product_id;
+            } else {
+                error_log("Failed to save temporary product");
+            }
+            
+        } catch (Exception $e) {
+            error_log("Exception creating temporary product: " . $e->getMessage());
+        }
+        
+        return false;
     }
     
     /**
-     * Extract URL from HTML snippet
+     * Store customer data in WooCommerce session
      */
-    private static function extract_url_from_html($html) {
-        // Try to find checkout URL in the HTML
-        if (preg_match('/https?:\/\/[^"\s<>]+klarna[^"\s<>]*/', $html, $matches)) {
-            return $matches[0];
+    private static function store_customer_data_in_session($customer_data) {
+        if (!WC()->session) {
+            return;
         }
         
-        // Try to find any klarna domain URL
-        if (preg_match('/https?:\/\/[^"\s<>]*klarna\.com[^"\s<>]*/', $html, $matches)) {
-            return $matches[0];
-        }
+        // Parse address
+        $address_parts = self::parse_address($customer_data['address']);
+        $name_parts = explode(' ', trim($customer_data['customer_name']), 2);
+        $first_name = $name_parts[0];
+        $last_name = isset($name_parts[1]) ? $name_parts[1] : '';
         
-        return '';
-    }
-    
-    /**
-     * Construct checkout URL from order ID
-     */
-    private static function construct_checkout_url($order_id) {
-        $credentials = self::get_api_credentials();
-        
-        if ($credentials['test_mode']) {
-            return 'https://checkout.testdrive.klarna.com/checkout/' . $order_id;
-        } else {
-            return 'https://checkout.klarna.com/checkout/' . $order_id;
-        }
-    }
-    
-    public static function get_order($order_id) {
-        $credentials = self::get_api_credentials();
-        
-        if (empty($credentials['merchant_id']) || empty($credentials['shared_secret'])) {
-            throw new Exception('Klarna API credentials not configured');
-        }
-        
-        $api_url = self::get_api_url() . 'checkout/v3/orders/' . $order_id;
-        
-        $response = wp_remote_get($api_url, array(
-            'headers' => array(
-                'Content-Type' => 'application/json',
-                'Authorization' => 'Basic ' . base64_encode($credentials['merchant_id'] . ':' . $credentials['shared_secret'])
-            )
+        // Store customer data in session
+        WC()->session->set('club_sales_customer_data', array(
+            'billing_first_name' => $first_name,
+            'billing_last_name' => $last_name,
+            'billing_email' => $customer_data['email'],
+            'billing_phone' => $customer_data['phone'],
+            'billing_address_1' => $address_parts['address_1'],
+            'billing_address_2' => $address_parts['address_2'],
+            'billing_city' => $address_parts['city'],
+            'billing_postcode' => $address_parts['postcode'],
+            'billing_country' => 'SE',
+            'shipping_first_name' => $first_name,
+            'shipping_last_name' => $last_name,
+            'shipping_address_1' => $address_parts['address_1'],
+            'shipping_address_2' => $address_parts['address_2'],
+            'shipping_city' => $address_parts['city'],
+            'shipping_postcode' => $address_parts['postcode'],
+            'shipping_country' => 'SE'
         ));
         
-        if (is_wp_error($response)) {
-            throw new Exception($response->get_error_message());
-        }
-        
-        return json_decode(wp_remote_retrieve_body($response), true);
+        error_log("Stored customer data in session");
     }
     
-    // Add this method to make the credentials publicly accessible for debugging
-    public static function get_api_credentials_debug() {
-        return self::get_api_credentials();
+    /**
+     * Parse address string into components
+     */
+    private static function parse_address($address_string) {
+        $lines = explode("\n", trim($address_string));
+        $lines = array_map('trim', $lines);
+        $lines = array_filter($lines);
+        
+        $parsed = array(
+            'address_1' => '',
+            'address_2' => '',
+            'city' => '',
+            'postcode' => ''
+        );
+        
+        if (count($lines) >= 1) {
+            $parsed['address_1'] = $lines[0];
+        }
+        
+        if (count($lines) >= 2) {
+            $last_line = end($lines);
+            
+            if (preg_match('/(\d{3}\s?\d{2})\s+(.+)/', $last_line, $matches)) {
+                $parsed['postcode'] = str_replace(' ', '', $matches[1]);
+                $parsed['city'] = $matches[2];
+            } else {
+                $parsed['city'] = $last_line;
+            }
+            
+            if (count($lines) > 2) {
+                $middle_lines = array_slice($lines, 1, -1);
+                $parsed['address_2'] = implode(', ', $middle_lines);
+            }
+        }
+        
+        return $parsed;
     }
 }
+
