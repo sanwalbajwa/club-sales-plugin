@@ -1646,3 +1646,58 @@ function cs_price_rounding_test_shortcode() {
     return ob_get_clean();
 }
 add_shortcode('cs_price_rounding_test', 'cs_price_rounding_test_shortcode');
+
+// Hook to modify cart item prices
+add_action('woocommerce_before_calculate_totals', 'cs_modify_cart_item_prices');
+
+function cs_modify_cart_item_prices($cart) {
+    if (is_admin() && !defined('DOING_AJAX')) {
+        return;
+    }
+    
+    foreach ($cart->get_cart() as $cart_item_key => $cart_item) {
+        if (isset($cart_item['club_sales_price'])) {
+            $cart_item['data']->set_price($cart_item['club_sales_price']);
+        }
+    }
+}
+
+// Hook to pre-fill checkout fields
+add_filter('woocommerce_checkout_get_value', 'cs_prefill_checkout_fields', 10, 2);
+
+function cs_prefill_checkout_fields($value, $input) {
+    if (!WC()->session) {
+        return $value;
+    }
+    
+    $customer_data = WC()->session->get('club_sales_customer_data');
+    
+    if ($customer_data && isset($customer_data[$input])) {
+        return $customer_data[$input];
+    }
+    
+    return $value;
+}
+
+// Clean up temporary products after order completion
+add_action('woocommerce_order_status_completed', 'cs_cleanup_temp_products');
+add_action('woocommerce_order_status_processing', 'cs_cleanup_temp_products');
+
+function cs_cleanup_temp_products($order_id) {
+    $order = wc_get_order($order_id);
+    
+    if (!$order) {
+        return;
+    }
+    
+    foreach ($order->get_items() as $item) {
+        $product_id = $item->get_product_id();
+        $product = wc_get_product($product_id);
+        
+        if ($product && $product->get_meta('_club_sales_temp_product') === 'yes') {
+            // Delete the temporary product
+            wp_delete_post($product_id, true);
+            error_log("Cleaned up temporary product: " . $product_id);
+        }
+    }
+}
