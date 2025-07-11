@@ -389,4 +389,3 @@ class CS_Klarna {
         return $parsed;
     }
 }
-
