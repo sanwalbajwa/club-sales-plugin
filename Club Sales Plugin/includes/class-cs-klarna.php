@@ -195,7 +195,7 @@ class CS_Klarna {
         
         // Store customer data in session for checkout
         if ($customer_data) {
-            self::store_customer_data_in_session($customer_data);
+//             self::store_customer_data_in_session($customer_data);
         }
         
         // Return checkout URL
@@ -318,37 +318,38 @@ class CS_Klarna {
      * Store customer data in WooCommerce session
      */
     private static function store_customer_data_in_session($customer_data) {
-        if (!WC()->session) {
-            return;
-        }
+//         if (!WC()->session) {
+//             return;
+//         }
         
-        // Parse address
-        $address_parts = self::parse_address($customer_data['address']);
-        $name_parts = explode(' ', trim($customer_data['customer_name']), 2);
-        $first_name = $name_parts[0];
-        $last_name = isset($name_parts[1]) ? $name_parts[1] : '';
+//         // Parse address
+//         $address_parts = self::parse_address($customer_data['address']);
+//         $name_parts = explode(' ', trim($customer_data['customer_name']), 2);
+//         $first_name = $name_parts[0];
+//         $last_name = isset($name_parts[1]) ? $name_parts[1] : '';
         
-        // Store customer data in session
-        WC()->session->set('club_sales_customer_data', array(
-            'billing_first_name' => $first_name,
-            'billing_last_name' => $last_name,
-            'billing_email' => $customer_data['email'],
-            'billing_phone' => $customer_data['phone'],
-            'billing_address_1' => $address_parts['address_1'],
-            'billing_address_2' => $address_parts['address_2'],
-            'billing_city' => $address_parts['city'],
-            'billing_postcode' => $address_parts['postcode'],
-            'billing_country' => 'SE',
-            'shipping_first_name' => $first_name,
-            'shipping_last_name' => $last_name,
-            'shipping_address_1' => $address_parts['address_1'],
-            'shipping_address_2' => $address_parts['address_2'],
-            'shipping_city' => $address_parts['city'],
-            'shipping_postcode' => $address_parts['postcode'],
-            'shipping_country' => 'SE'
-        ));
+//         // Store customer data in session
+//         WC()->session->set('club_sales_customer_data', array(
+//             'billing_first_name' => $first_name,
+//             'billing_last_name' => $last_name,
+//             'billing_email' => $customer_data['email'],
+//             'billing_phone' => $customer_data['phone'],
+//             'billing_address_1' => $address_parts['address_1'],
+//             'billing_address_2' => $address_parts['address_2'],
+//             'billing_city' => $address_parts['city'],
+//             'billing_postcode' => $address_parts['postcode'],
+//             'billing_country' => 'SE',
+//             'shipping_first_name' => $first_name,
+//             'shipping_last_name' => $last_name,
+//             'shipping_address_1' => $address_parts['address_1'],
+//             'shipping_address_2' => $address_parts['address_2'],
+//             'shipping_city' => $address_parts['city'],
+//             'shipping_postcode' => $address_parts['postcode'],
+//             'shipping_country' => 'SE'
+//         ));
         
-        error_log("Stored customer data in session");
+//         error_log("Stored customer data in session");
+	        return;
     }
     
     /**
