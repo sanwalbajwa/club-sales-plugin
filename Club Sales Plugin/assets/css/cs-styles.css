@@ -862,3 +862,18 @@ h1.cs-product-title, h3.cs-sales-material-title, .cs-full-description h3{
 .cs-main-image img {
     max-width: 70% !important;
 }
+.cs-order-actions .cs-reset-order {
+    margin-left: 5px;
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    padding: 17px 32px;
+    border-radius: 25px;
+    cursor: pointer;
+}
+
+.cs-order-actions .cs-reset-order:hover {
+    background-color: #f57c00;
+    border: none;
+    color: white;
+}
