@@ -1663,20 +1663,23 @@ function cs_modify_cart_item_prices($cart) {
 }
 
 // Hook to pre-fill checkout fields
-add_filter('woocommerce_checkout_get_value', 'cs_prefill_checkout_fields', 10, 2);
+// add_filter('woocommerce_checkout_get_value', 'cs_prefill_checkout_fields', 10, 2);
 
 function cs_prefill_checkout_fields($value, $input) {
-    if (!WC()->session) {
-        return $value;
-    }
+	
+	return $value;
+	
+//     if (!WC()->session) {
+//         return $value;
+//     }
     
-    $customer_data = WC()->session->get('club_sales_customer_data');
+//     $customer_data = WC()->session->get('club_sales_customer_data');
     
-    if ($customer_data && isset($customer_data[$input])) {
-        return $customer_data[$input];
-    }
+//     if ($customer_data && isset($customer_data[$input])) {
+//         return $customer_data[$input];
+//     }
     
-    return $value;
+//     return $value;
 }
 
 // Clean up temporary products after order completion
@@ -1700,4 +1703,24 @@ function cs_cleanup_temp_products($order_id) {
             error_log("Cleaned up temporary product: " . $product_id);
         }
     }
+}
+// Hook to force empty checkout fields
+add_filter('woocommerce_checkout_get_value', 'cs_force_empty_checkout_fields', 10, 2);
+
+function cs_force_empty_checkout_fields($value, $input) {
+    // List of fields to force empty
+    $fields_to_empty = array(
+        'billing_first_name', 'billing_last_name', 'billing_email', 'billing_phone',
+        'billing_address_1', 'billing_address_2', 'billing_city', 'billing_postcode',
+        'shipping_first_name', 'shipping_last_name', 'shipping_address_1', 
+        'shipping_address_2', 'shipping_city', 'shipping_postcode'
+    );
+    
+    // If this is a field we want to keep empty, return empty string
+    if (in_array($input, $fields_to_empty)) {
+        return '';
+    }
+    
+    // For other fields, return the original value
+    return $value;
 }
