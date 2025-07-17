@@ -10,7 +10,7 @@ class CS_Ajax {
 		add_action('wp_ajax_cs_delete_sale', array(__CLASS__, 'handle_delete_sale'));
 		add_action('wp_ajax_cs_update_order', array(__CLASS__, 'handle_update_order'));
 		add_action('wp_ajax_cs_recalculate_total_profit', array(__CLASS__, 'handle_recalculate_total_profit'));
-		
+		add_action('wp_ajax_cs_reset_order_status', array(__CLASS__, 'handle_reset_order_status'));
 		// New: Add auto-update handler
 		add_action('wp_ajax_cs_check_stats_update', array(__CLASS__, 'handle_check_stats_update'));
 	}
@@ -313,6 +313,75 @@ public static function handle_product_search() {
         'stats_updated' => true
     ));
 }
+	
+	public static function handle_reset_order_status() {
+    check_ajax_referer('cs-ajax-nonce', 'nonce');
+    
+    $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+    
+    if (!$order_id) {
+        wp_send_json_error('Invalid order ID');
+        return;
+    }
+    
+    global $wpdb;
+    
+    // Verify the current user has permission to reset this order
+    $current_user_id = get_current_user_id();
+    $order = $wpdb->get_row($wpdb->prepare(
+        "SELECT * FROM {$wpdb->prefix}cs_sales WHERE id = %d",
+        $order_id
+    ));
+    
+    if (!$order) {
+        wp_send_json_error('Order not found');
+        return;
+    }
+    
+    // Permission check (same as update order)
+    $can_reset = false;
+    
+    if ($order->user_id == $current_user_id) {
+        $can_reset = true;
+    }
+    
+    $child_parent = CS_Child_Manager::get_child_parent($order->user_id);
+    if ($child_parent && $child_parent['id'] == $current_user_id) {
+        $can_reset = true;
+    }
+    
+    if (!$can_reset && CS_Child_Manager::can_manage_children()) {
+        $can_reset = true;
+    }
+    
+    if (!$can_reset && current_user_can('manage_options')) {
+        $can_reset = true;
+    }
+    
+    if (!$can_reset) {
+        wp_send_json_error('You do not have permission to reset this order');
+        return;
+    }
+    
+    // Reset the order status to pending
+    $result = $wpdb->update(
+        $wpdb->prefix . 'cs_sales',
+        array('status' => 'pending'),
+        array('id' => $order_id),
+        array('%s'),
+        array('%d')
+    );
+    
+    if ($result !== false) {
+        wp_send_json_success(array(
+            'message' => 'Order status reset to pending successfully',
+            'order_id' => $order_id
+        ));
+    } else {
+        wp_send_json_error('Failed to reset order status');
+    }
+}
+	
 public static function handle_add_sale() {
     try {
         check_ajax_referer('cs-ajax-nonce', 'nonce');
