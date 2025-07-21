@@ -220,6 +220,7 @@ require_once CS_PLUGIN_DIR . 'includes/class-cs-user-admin.php';
 require_once CS_PLUGIN_DIR . 'includes/class-cs-price-calculator.php';
 require_once CS_PLUGIN_DIR . 'includes/class-cs-order-confirmation.php';
 require_once CS_PLUGIN_DIR . 'includes/class-cs-sales-chart.php';
+require_once CS_PLUGIN_DIR . 'includes/class-cs-vat-tax-sync.php';
 
 // Initialize the plugin
 class ClubSalesPlugin {
@@ -1723,4 +1724,125 @@ function cs_force_empty_checkout_fields($value, $input) {
     
     // For other fields, return the original value
     return $value;
+}
+
+// Hook into WooCommerce product tax class filter
+add_filter('woocommerce_product_tax_class', 'cs_auto_assign_tax_class_by_vat', 10, 2);
+
+/**
+ * Automatically assign tax class based on product's VAT rate
+ *
+ * @param string $tax_class Current tax class
+ * @param WC_Product $product Product object
+ * @return string Modified tax class
+ */
+function cs_auto_assign_tax_class_by_vat($tax_class, $product) {
+    $product_id = $product->get_id();
+    $vat_rate = null;
+    
+    if (function_exists('get_field')) {
+        $vat_rate = get_field('vat', $product_id);
+    }
+    
+    // Clean the VAT rate value (handles values like " 6 " from vendor form)
+    if ($vat_rate) {
+        $vat_rate = trim(str_replace(' ', '', $vat_rate));
+    }
+
+    $vat_to_tax_class_map = array(
+        '6'  => '6',
+        '12' => '12',
+        '25' => '25'
+    );
+    
+    if ($vat_rate && array_key_exists($vat_rate, $vat_to_tax_class_map)) {
+        return $vat_to_tax_class_map[$vat_rate];
+    }
+    
+    return $tax_class; // Fallback to original
+}
+
+/**
+ * Optional: Add JavaScript for real-time UI updates (vendor dashboard)
+ */
+add_action('wp_footer', 'cs_add_vat_tax_realtime_script');
+add_action('admin_footer', 'cs_add_vat_tax_realtime_script');
+
+/**
+ * Add JavaScript for real-time tax class updates
+ */
+function cs_add_vat_tax_realtime_script() {
+    // Only load on relevant admin/vendor pages
+    if (!is_admin() && !function_exists('wcfm_is_vendor')) {
+        return;
+    }
+    ?>
+    <script type="text/javascript">
+    jQuery(document).ready(function($) {
+        console.log('🚀 VAT Tax Class Auto-Assignment Active');
+
+        // This map is correct based on your previous screenshot
+        const vatToTaxClass = {
+            '6': '6',
+            '12': '12',
+            '25': '25'
+        };
+
+        // Function to update the tax class dropdown
+        function updateTaxClassDisplay(vatRate) {
+            // Clean the value just in case (removes spaces and non-numeric chars)
+            const cleanVatRate = String(vatRate).replace(/\D/g, '');
+
+            if (vatToTaxClass[cleanVatRate]) {
+                const taxClassSlug = vatToTaxClass[cleanVatRate];
+                $('#_tax_class').val(taxClassSlug);
+                console.log(`✅ Tax class updated to: ${taxClassSlug}`);
+            }
+        }
+
+        // --- THIS IS THE KEY FIX ---
+        // Use a robust selector that works on both admin and vendor pages.
+        // It listens for changes on the VAT dropdown.
+        $(document).on('change', 'select[data-name="vat"]', function() {
+            const selectedValue = $(this).val();
+            updateTaxClassDisplay(selectedValue);
+        });
+
+        // Also check the value when the page first loads
+        setTimeout(function() {
+            const $vatSelect = $('select[data-name="vat"]');
+            if ($vatSelect.length > 0) {
+                const existingValue = $vatSelect.val();
+                if (existingValue) {
+                    updateTaxClassDisplay(existingValue);
+                }
+            }
+        }, 1000); // Wait 1 sec for page to build
+
+    });
+    </script>
+    <?php
+}
+
+add_action('save_post_product', 'cs_update_tax_class_based_on_vat_field', 20, 3);
+function cs_update_tax_class_based_on_vat_field($post_ID, $post, $update) {
+    if ($post->post_type !== 'product') return;
+    if (!is_admin()) return;
+
+    if (function_exists('get_field')) {
+        $vat_rate = get_field('vat', $post_ID);
+        
+        if ($vat_rate) {
+            $vat_rate = trim(str_replace(' ', '', $vat_rate));
+            $vat_to_tax_class_map = array(
+                '6'  => '6',
+                '12' => '12',
+                '25' => '25'
+            );
+
+            if (array_key_exists($vat_rate, $vat_to_tax_class_map)) {
+                update_post_meta($post_ID, '_tax_class', $vat_to_tax_class_map[$vat_rate]);
+            }
+        }
+    }
 }
