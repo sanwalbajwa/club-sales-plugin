@@ -1,8 +1,8 @@
 <?php
 class CS_Klarna {
     private static function get_api_credentials() {
-        $merchant_id = '20d65877-6280-4d5e-8999-5e3e543695d3';
-        $shared_secret = 'klarna_live_api_V3k0KTkzKnpRVFdZZyM_ekEvVFRnSUtEZlJBIUI0SWIsMjBkNjU4NzctNjI4MC00ZDVlLTg5OTktNWUzZTU0MzY5NWQzLDEsdmU0cDMvQkgySjRTTHZpdklkdjE2UUtaQnpYdmtvWmlRMk16T25MM1FETT0';
+        $merchant_id = 'K7369022-SYz4n';
+        $shared_secret = 'kco_live_api_HyffimDb7ykeeoTsISEYHuKplr2aAalh';
         $test_mode = false;
         
         return array(
@@ -37,10 +37,14 @@ class CS_Klarna {
             $checkout_url = self::add_products_to_cart_and_checkout($sales);
             
             if ($checkout_url) {
-                // Update the original sales with processing status
-                $wpdb->query($wpdb->prepare(
-                    "UPDATE {$wpdb->prefix}cs_sales SET status = 'processing' WHERE id IN ($sale_ids_str)"
-                ));
+                // IMPORTANT CHANGE: DO NOT update status to 'processing' 
+                // Keep orders as 'pending' until they are actually completed through WooCommerce
+                error_log("Checkout URL created successfully. Orders remain 'pending' until completion.");
+                
+                // Store the sale IDs in user meta or session for tracking
+                // This helps us identify which sales were sent to checkout
+                $current_user_id = get_current_user_id();
+                update_user_meta($current_user_id, 'cs_checkout_sales_' . time(), $sale_ids);
                 
                 return $checkout_url;
             } else {
@@ -61,7 +65,7 @@ class CS_Klarna {
             throw new Exception('WooCommerce is not active');
         }
         
-        error_log("=== ADDING PRODUCTS TO CART (CHILD ORDER FIX) ===");
+        error_log("=== ADDING PRODUCTS TO CART (KEEPING ORDERS PENDING) ===");
         
         $customer_data = null;
         $products_added = 0;
@@ -193,16 +197,16 @@ class CS_Klarna {
             }
         }
         
-        // Store customer data in session for checkout
-        if ($customer_data) {
-//             self::store_customer_data_in_session($customer_data);
+        // Store the sale IDs in the cart session so we can update them later
+        if (WC()->session) {
+            WC()->session->set('club_sales_order_ids', array_column($sales, 'id'));
         }
         
         // Return checkout URL
         return wc_get_checkout_url();
     }
-	
-	private static function add_fallback_product_to_cart($sale) {
+    
+    private static function add_fallback_product_to_cart($sale) {
         $product_name = "Sale #{$sale->id} - {$sale->customer_name}";
         $price = floatval($sale->sale_amount);
         $quantity = 1;
@@ -211,6 +215,7 @@ class CS_Klarna {
         
         return self::add_generic_product_to_cart($product_name, $price, $quantity);
     }
+    
     private static function add_single_product_to_cart($product_id, $product_name, $price, $quantity) {
         try {
             // Check if WooCommerce product exists
@@ -246,8 +251,8 @@ class CS_Klarna {
             return self::add_generic_product_to_cart($product_name, $price, $quantity);
         }
     }
-	
-	private static function add_generic_product_to_cart($product_name, $price, $quantity) {
+    
+    private static function add_generic_product_to_cart($product_name, $price, $quantity) {
         try {
             error_log("Creating generic product: {$product_name}, Price: {$price}, Qty: {$quantity}");
             
@@ -278,6 +283,7 @@ class CS_Klarna {
             return false;
         }
     }
+    
     /**
      * Create a temporary simple product for checkout
      */
@@ -312,44 +318,6 @@ class CS_Klarna {
         }
         
         return false;
-    }
-    
-    /**
-     * Store customer data in WooCommerce session
-     */
-    private static function store_customer_data_in_session($customer_data) {
-//         if (!WC()->session) {
-//             return;
-//         }
-        
-//         // Parse address
-//         $address_parts = self::parse_address($customer_data['address']);
-//         $name_parts = explode(' ', trim($customer_data['customer_name']), 2);
-//         $first_name = $name_parts[0];
-//         $last_name = isset($name_parts[1]) ? $name_parts[1] : '';
-        
-//         // Store customer data in session
-//         WC()->session->set('club_sales_customer_data', array(
-//             'billing_first_name' => $first_name,
-//             'billing_last_name' => $last_name,
-//             'billing_email' => $customer_data['email'],
-//             'billing_phone' => $customer_data['phone'],
-//             'billing_address_1' => $address_parts['address_1'],
-//             'billing_address_2' => $address_parts['address_2'],
-//             'billing_city' => $address_parts['city'],
-//             'billing_postcode' => $address_parts['postcode'],
-//             'billing_country' => 'SE',
-//             'shipping_first_name' => $first_name,
-//             'shipping_last_name' => $last_name,
-//             'shipping_address_1' => $address_parts['address_1'],
-//             'shipping_address_2' => $address_parts['address_2'],
-//             'shipping_city' => $address_parts['city'],
-//             'shipping_postcode' => $address_parts['postcode'],
-//             'shipping_country' => 'SE'
-//         ));
-        
-//         error_log("Stored customer data in session");
-	        return;
     }
     
     /**
@@ -389,4 +357,55 @@ class CS_Klarna {
         
         return $parsed;
     }
+    
+    /**
+     * Helper function to get sale IDs from WooCommerce order
+     */
+    public static function get_sale_ids_from_wc_order($order_id) {
+        // Try to get sale IDs from session first
+        if (WC()->session) {
+            $sale_ids = WC()->session->get('club_sales_order_ids');
+            if (!empty($sale_ids)) {
+                return $sale_ids;
+            }
+        }
+        
+        // Fallback: find recent pending sales (within last hour)
+        global $wpdb;
+        $sale_ids = $wpdb->get_col(
+            "SELECT id FROM {$wpdb->prefix}cs_sales 
+             WHERE status = 'pending' 
+             AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+             ORDER BY created_at DESC"
+        );
+        
+        return $sale_ids;
+    }
+}
+
+// Hook to handle order completion status updates
+add_action('woocommerce_order_status_completed', 'cs_update_sales_status_completed');
+add_action('woocommerce_order_status_processing', 'cs_update_sales_status_processing');
+
+function cs_update_sales_status_completed($order_id) {
+    // When WooCommerce order is completed, update our sales records to completed
+    $sale_ids = CS_Klarna::get_sale_ids_from_wc_order($order_id);
+    
+    if (!empty($sale_ids)) {
+        global $wpdb;
+        $sale_ids_str = implode(',', array_map('intval', $sale_ids));
+        
+        $wpdb->query(
+            "UPDATE {$wpdb->prefix}cs_sales 
+             SET status = 'completed' 
+             WHERE id IN ($sale_ids_str)"
+        );
+        
+        error_log("Updated sales records to completed status for WooCommerce order: " . $order_id);
+    }
+}
+
+function cs_update_sales_status_processing($order_id) {
+    // We don't update to processing anymore - orders stay pending until completed
+    error_log("WooCommerce order {$order_id} set to processing - Club Sales orders remain pending");
 }
