@@ -314,73 +314,6 @@ public static function handle_product_search() {
     ));
 }
 	
-	public static function handle_reset_order_status() {
-    check_ajax_referer('cs-ajax-nonce', 'nonce');
-    
-    $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
-    
-    if (!$order_id) {
-        wp_send_json_error('Invalid order ID');
-        return;
-    }
-    
-    global $wpdb;
-    
-    // Verify the current user has permission to reset this order
-    $current_user_id = get_current_user_id();
-    $order = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM {$wpdb->prefix}cs_sales WHERE id = %d",
-        $order_id
-    ));
-    
-    if (!$order) {
-        wp_send_json_error('Order not found');
-        return;
-    }
-    
-    // Permission check (same as update order)
-    $can_reset = false;
-    
-    if ($order->user_id == $current_user_id) {
-        $can_reset = true;
-    }
-    
-    $child_parent = CS_Child_Manager::get_child_parent($order->user_id);
-    if ($child_parent && $child_parent['id'] == $current_user_id) {
-        $can_reset = true;
-    }
-    
-    if (!$can_reset && CS_Child_Manager::can_manage_children()) {
-        $can_reset = true;
-    }
-    
-    if (!$can_reset && current_user_can('manage_options')) {
-        $can_reset = true;
-    }
-    
-    if (!$can_reset) {
-        wp_send_json_error('You do not have permission to reset this order');
-        return;
-    }
-    
-    // Reset the order status to pending
-    $result = $wpdb->update(
-        $wpdb->prefix . 'cs_sales',
-        array('status' => 'pending'),
-        array('id' => $order_id),
-        array('%s'),
-        array('%d')
-    );
-    
-    if ($result !== false) {
-        wp_send_json_success(array(
-            'message' => 'Order status reset to pending successfully',
-            'order_id' => $order_id
-        ));
-    } else {
-        wp_send_json_error('Failed to reset order status');
-    }
-}
 	
 public static function handle_add_sale() {
     try {
@@ -556,84 +489,85 @@ public static function handle_add_sale() {
     wp_send_json_success($stats);
 }
     
-    public static function handle_klarna_checkout() {
-    check_ajax_referer('cs-ajax-nonce', 'nonce');
-    
-    // If no sale IDs are provided, fetch all pending sales
-    if (!isset($_POST['sale_ids']) || empty($_POST['sale_ids'])) {
-        global $wpdb;
-        $pending_sales = $wpdb->get_col(
-            "SELECT id FROM {$wpdb->prefix}cs_sales WHERE status = 'pending'"
-        );
+public static function handle_klarna_checkout() {
+        check_ajax_referer('cs-ajax-nonce', 'nonce');
         
-        if (empty($pending_sales)) {
-            wp_send_json_error('No pending sales found');
-            return;
+        // If no sale IDs are provided, fetch all pending sales
+        if (!isset($_POST['sale_ids']) || empty($_POST['sale_ids'])) {
+            global $wpdb;
+            $pending_sales = $wpdb->get_col(
+                "SELECT id FROM {$wpdb->prefix}cs_sales WHERE status = 'pending'"
+            );
+            
+            if (empty($pending_sales)) {
+                wp_send_json_error('No pending sales found');
+                return;
+            }
+            
+            $sale_ids = $pending_sales;
+        } else {
+            $sale_ids = array_map('intval', (array) $_POST['sale_ids']);
         }
         
-        $sale_ids = $pending_sales;
-    } else {
-        $sale_ids = array_map('intval', (array) $_POST['sale_ids']);
+        // Log for debugging
+        error_log("Processing checkout for sale IDs: " . implode(', ', $sale_ids));
+        
+        try {
+            // Create WooCommerce order
+            $checkout_url = CS_Klarna::create_order($sale_ids);
+            
+            // Enhanced logging
+            error_log("WooCommerce checkout URL created: " . $checkout_url);
+            
+            // Validate the checkout URL
+            if (empty($checkout_url)) {
+                error_log("Empty checkout URL received");
+                wp_send_json_error('Empty checkout URL received');
+                return;
+            }
+            
+            // Check if it's a valid URL
+            if (!filter_var($checkout_url, FILTER_VALIDATE_URL)) {
+                error_log("Invalid checkout URL format: " . $checkout_url);
+                wp_send_json_error('Invalid checkout URL format: ' . $checkout_url);
+                return;
+            }
+            
+            // IMPORTANT: Orders remain as 'pending' - no status change until WooCommerce completion
+            error_log("Orders remain 'pending' status until checkout completion");
+            
+            // Update stats timestamp for current user
+            $current_user_id = get_current_user_id();
+            update_user_meta($current_user_id, 'cs_stats_last_updated', time());
+            
+            // Enhanced response
+            $response_data = array(
+                'redirect_url' => $checkout_url,
+                'processed_count' => count($sale_ids),
+                'stats_updated' => true,
+                'sale_ids' => $sale_ids,
+                'timestamp' => time(),
+                'checkout_type' => 'woocommerce',
+                'status_info' => 'Orders remain pending until checkout completion'
+            );
+            
+            error_log("Sending success response: " . json_encode($response_data));
+            
+            wp_send_json_success($response_data);
+            
+        } catch (Exception $e) {
+            error_log("Checkout error: " . $e->getMessage());
+            wp_send_json_error('Checkout error: ' . $e->getMessage());
+        }
     }
+
+    // Remove the reset order status handler since we no longer need it
+    // Orders will only be 'pending' or 'completed' - no 'processing' status to reset from
     
-    // Log for debugging
-    error_log("Processing checkout for sale IDs: " . implode(', ', $sale_ids));
-    
-    try {
-        // Create WooCommerce order instead of Klarna
-        $checkout_url = CS_Klarna::create_order($sale_ids);
-        
-        // Enhanced logging
-        error_log("WooCommerce checkout URL created: " . $checkout_url);
-        
-        // Validate the checkout URL
-        if (empty($checkout_url)) {
-            error_log("Empty checkout URL received");
-            wp_send_json_error('Empty checkout URL received');
-            return;
-        }
-        
-        // Check if it's a valid URL
-        if (!filter_var($checkout_url, FILTER_VALIDATE_URL)) {
-            error_log("Invalid checkout URL format: " . $checkout_url);
-            wp_send_json_error('Invalid checkout URL format: ' . $checkout_url);
-            return;
-        }
-        
-        // Update status of processed sales
-        global $wpdb;
-        $ids_string = implode(',', array_map('intval', $sale_ids));
-        $updated_rows = $wpdb->query(
-            "UPDATE {$wpdb->prefix}cs_sales 
-             SET status = 'processing' 
-             WHERE id IN ($ids_string)"
-        );
-        
-        error_log("Updated {$updated_rows} sales to processing status");
-        
-        // Update stats timestamp for current user
-        $current_user_id = get_current_user_id();
-        update_user_meta($current_user_id, 'cs_stats_last_updated', time());
-        
-        // Enhanced response
-        $response_data = array(
-            'redirect_url' => $checkout_url,
-            'processed_count' => count($sale_ids),
-            'stats_updated' => true,
-            'sale_ids' => $sale_ids,
-            'timestamp' => time(),
-            'checkout_type' => 'woocommerce'
-        );
-        
-        error_log("Sending success response: " . json_encode($response_data));
-        
-        wp_send_json_success($response_data);
-        
-    } catch (Exception $e) {
-        error_log("Checkout error: " . $e->getMessage());
-        wp_send_json_error('Checkout error: ' . $e->getMessage());
+    // You can remove this entire function or keep it disabled
+    public static function handle_reset_order_status() {
+        wp_send_json_error('Reset functionality is not needed. Orders remain pending until completed.');
     }
-}
 	public static function handle_get_sales() {
 		check_ajax_referer('cs-ajax-nonce', 'nonce');
 
