@@ -826,6 +826,9 @@ function initQuantityChangeListener() {
         const statusClass = 'cs-status-' + order.status;
         const isChild = order.is_child ? ' (Child)' : '';
 
+        // NO RESET BUTTON - Orders are either 'pending' or 'completed'
+        // If user goes to checkout and comes back without completing, it stays 'pending'
+        
         html += `
 <tr data-order-id="${order.id}">
     <td>${order.id}</td>
@@ -837,7 +840,6 @@ function initQuantityChangeListener() {
     <td class="cs-order-actions">
         <button type="button" class="cs-order-action cs-view-order" data-id="${order.id}">View</button>
         <button type="button" class="cs-order-action cs-delete-order" data-id="${order.id}">Delete</button>
-		${order.status === 'processing' ? '<button type="button" class="cs-order-action cs-reset-order" data-id="' + order.id + '">Reset to Pending</button>' : ''}
     </td>
 </tr>
 `;
@@ -901,59 +903,9 @@ function initQuantityChangeListener() {
             });
         }
     });
-}
 
-	$(document).off('click', '.cs-reset-order').on('click', '.cs-reset-order', function() {
-    console.log('Reset button clicked!'); // This should now work
-    
-    const orderId = $(this).data('id');
-    const $row = $(this).closest('tr');
-    
-    console.log('Order ID:', orderId); // Debug log
-    
-    if (confirm('Reset this order to pending status? This will allow it to be processed again.')) {
-        $.ajax({
-            url: csAjax.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'cs_reset_order_status',
-                nonce: csAjax.nonce,
-                order_id: orderId
-            },
-            beforeSend: function() {
-                console.log('Sending reset request...'); // Debug log
-                $row.find('.cs-reset-order').text('Resetting...').prop('disabled', true);
-            },
-            success: function(response) {
-                console.log('Reset response:', response); // Debug log
-                
-                if (response.success) {
-                    // Update the status in the UI
-                    $row.find('.cs-order-status')
-                        .removeClass('cs-status-processing')
-                        .addClass('cs-status-pending')
-                        .text('pending');
-                    
-                    // Remove the reset button
-                    $row.find('.cs-reset-order').remove();
-                    
-                    alert('Order status reset to pending successfully');
-                    
-                    // Refresh the orders list
-                    loadOrders();
-                } else {
-                    alert('Error: ' + (response.data || 'Could not reset order status'));
-                    $row.find('.cs-reset-order').text('Reset to Pending').prop('disabled', false);
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Reset error:', status, error); // Debug log
-                alert('Error: Could not reset order status. Please try again.');
-                $row.find('.cs-reset-order').text('Reset to Pending').prop('disabled', false);
-            }
-        });
-    }
-});
+    // Remove all reset button handlers since we don't have reset buttons anymore
+}
 	
 // Initialize order filters and processing
 function initOrderFilters() {
