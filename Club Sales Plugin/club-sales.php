@@ -220,7 +220,6 @@ require_once CS_PLUGIN_DIR . 'includes/class-cs-user-admin.php';
 require_once CS_PLUGIN_DIR . 'includes/class-cs-price-calculator.php';
 require_once CS_PLUGIN_DIR . 'includes/class-cs-order-confirmation.php';
 require_once CS_PLUGIN_DIR . 'includes/class-cs-sales-chart.php';
-require_once CS_PLUGIN_DIR . 'includes/class-cs-vat-tax-sync.php';
 
 // Initialize the plugin
 class ClubSalesPlugin {
@@ -1731,10 +1730,6 @@ add_filter('woocommerce_product_tax_class', 'cs_auto_assign_tax_class_by_vat', 1
 
 /**
  * Automatically assign tax class based on product's VAT rate
- *
- * @param string $tax_class Current tax class
- * @param WC_Product $product Product object
- * @return string Modified tax class
  */
 function cs_auto_assign_tax_class_by_vat($tax_class, $product) {
     $product_id = $product->get_id();
@@ -1763,14 +1758,11 @@ function cs_auto_assign_tax_class_by_vat($tax_class, $product) {
 }
 
 /**
- * Optional: Add JavaScript for real-time UI updates (vendor dashboard)
+ * Add JavaScript for real-time tax class updates
  */
 add_action('wp_footer', 'cs_add_vat_tax_realtime_script');
 add_action('admin_footer', 'cs_add_vat_tax_realtime_script');
 
-/**
- * Add JavaScript for real-time tax class updates
- */
 function cs_add_vat_tax_realtime_script() {
     // Only load on relevant admin/vendor pages
     if (!is_admin() && !function_exists('wcfm_is_vendor')) {
@@ -1800,7 +1792,6 @@ function cs_add_vat_tax_realtime_script() {
             }
         }
 
-        // --- THIS IS THE KEY FIX ---
         // Use a robust selector that works on both admin and vendor pages.
         // It listens for changes on the VAT dropdown.
         $(document).on('change', 'select[data-name="vat"]', function() {
@@ -1824,25 +1815,138 @@ function cs_add_vat_tax_realtime_script() {
     <?php
 }
 
-add_action('save_post_product', 'cs_update_tax_class_based_on_vat_field', 20, 3);
-function cs_update_tax_class_based_on_vat_field($post_ID, $post, $update) {
-    if ($post->post_type !== 'product') return;
-    if (!is_admin()) return;
+// Main sync function - consolidated from multiple duplicates
+add_action('acf/save_post', 'cs_sync_tax_class_with_vat', 20);
+add_action('wcfm_product_manage_after_process', 'cs_sync_tax_class_with_vat_wcfm', 10, 2);
 
+/**
+ * Main function to sync tax class with VAT rate (ACF save)
+ */
+function cs_sync_tax_class_with_vat($post_id) {
+    // Only process for products
+    if (get_post_type($post_id) !== 'product') {
+        return;
+    }
+    
+    cs_update_tax_class_from_vat_rate($post_id);
+}
+
+/**
+ * WCFM wrapper function
+ */
+function cs_sync_tax_class_with_vat_wcfm($product_id, $wcfm_products_manage_form_data) {
+    cs_update_tax_class_from_vat_rate($product_id);
+}
+
+/**
+ * Core function to update tax class based on VAT rate
+ */
+function cs_update_tax_class_from_vat_rate($product_id) {
     if (function_exists('get_field')) {
-        $vat_rate = get_field('vat', $post_ID);
+        $vat_rate = get_field('vat', $product_id);
         
         if ($vat_rate) {
+            // Clean the VAT rate value
             $vat_rate = trim(str_replace(' ', '', $vat_rate));
+            
+            // Map VAT rates to tax classes
             $vat_to_tax_class_map = array(
                 '6'  => '6',
                 '12' => '12',
                 '25' => '25'
             );
-
+            
+            // Update the tax class if we have a mapping
             if (array_key_exists($vat_rate, $vat_to_tax_class_map)) {
-                update_post_meta($post_ID, '_tax_class', $vat_to_tax_class_map[$vat_rate]);
+                $tax_class = $vat_to_tax_class_map[$vat_rate];
+                
+                // Get current tax class
+                $current_tax_class = get_post_meta($product_id, '_tax_class', true);
+                
+                // Only update if different
+                if ($current_tax_class !== $tax_class) {
+                    update_post_meta($product_id, '_tax_class', $tax_class);
+                    error_log("Updated product {$product_id} tax class to '{$tax_class}' based on VAT rate {$vat_rate}%");
+                    
+                    // Clear WooCommerce caches
+                    if (function_exists('wc_delete_product_transients')) {
+                        wc_delete_product_transients($product_id);
+                    }
+                }
             }
+        }
+    }
+}
+
+// Bidirectional sync: Update VAT field when tax class changes in admin
+add_action('updated_post_meta', 'cs_sync_vat_from_tax_class_change', 10, 4);
+
+/**
+ * Sync VAT field when tax class is changed in WooCommerce admin
+ */
+function cs_sync_vat_from_tax_class_change($meta_id, $post_id, $meta_key, $meta_value) {
+    // Only process for products and tax class changes
+    if (get_post_type($post_id) !== 'product' || $meta_key !== '_tax_class') {
+        return;
+    }
+    
+    // Prevent infinite loops
+    static $processing = false;
+    if ($processing) return;
+    $processing = true;
+    
+    // Map tax classes back to VAT rates
+    $tax_class_to_vat_map = array(
+        '6'  => '6',
+        '12' => '12', 
+        '25' => '25',
+        ''   => '25' // Default standard to 25%
+    );
+    
+    if (array_key_exists($meta_value, $tax_class_to_vat_map)) {
+        $new_vat_rate = $tax_class_to_vat_map[$meta_value];
+        
+        // Get current VAT from ACF
+        $current_vat = '';
+        if (function_exists('get_field')) {
+            $current_vat = get_field('vat', $post_id);
+        }
+        
+        // Only update if different
+        if ($current_vat !== $new_vat_rate) {
+            // Update ACF VAT field
+            if (function_exists('update_field')) {
+                update_field('vat', $new_vat_rate, $post_id);
+                error_log("Updated ACF VAT field to '{$new_vat_rate}' based on tax class '{$meta_value}' for product {$post_id}");
+            }
+        }
+    }
+    
+    $processing = false;
+}
+
+/**
+ * Update all VAT-related fields for consistency
+ */
+function cs_update_all_vat_fields($product_id, $vat_rate) {
+    $clean_vat = floatval(trim(str_replace(' ', '', $vat_rate)));
+    
+    // Update custom VAT meta fields
+    update_post_meta($product_id, '_cs_vat_rate', $clean_vat);
+    
+    // Calculate VAT amount based on product price
+    $product = wc_get_product($product_id);
+    if ($product) {
+        $base_price = $product->get_regular_price();
+        if ($base_price) {
+            // Calculate VAT amount
+            $margin_rate = floatval(get_option('club_sales_global_margin', 12));
+            $margin_amount = $base_price * ($margin_rate / 100);
+            $price_with_margin = $base_price + $margin_amount;
+            $vat_amount = $price_with_margin * ($clean_vat / 100);
+            
+            // Update VAT amount meta
+            update_post_meta($product_id, '_cs_vat_amount', $vat_amount);
         }
     }
 }
