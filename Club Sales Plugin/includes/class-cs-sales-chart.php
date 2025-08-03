@@ -1,7 +1,7 @@
 <?php
 class CS_Sales_Chart {
     /**
-     * Register AJAX action for fetching sales chart data
+     * Register AJAX action for fetching sales chart data.
      */
     public static function init_ajax_hooks() {
         add_action('wp_ajax_cs_get_sales_chart_data', array(__CLASS__, 'get_sales_chart_data'));
