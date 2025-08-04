@@ -1,7 +1,8 @@
 <?php
 /**
  * Shortcodes for the Club Child Users
- */class CS_Child_Shortcodes {
+ */
+class CS_Child_Shortcodes {
     /**
      * Initialize shortcodes
      */
