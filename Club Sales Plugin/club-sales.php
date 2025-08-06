@@ -7,7 +7,7 @@ Version: 2.0.0
 Author: Aftab 
 Author URI: https://yourwebsite.com
 License: GPL v2 or later
-License URI: https://www.gnu.org/licenses/gpl-2.0.html
+License URI: https://www.gnu.org/licenses/gpl-2.0.html 
 Text Domain: club-sales
 */
 
