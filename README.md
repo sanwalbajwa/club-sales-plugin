@@ -1,6 +1,6 @@
 # Club Sales Plugin
 
-A WordPress plugin for managing club sales and memberships.
+A WordPress plugin for managing club sales and multi vendor site.
 
 ## Features
 
