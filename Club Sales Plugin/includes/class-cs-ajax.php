@@ -638,12 +638,65 @@ public static function handle_klarna_checkout() {
 
 		// Add user information to each sale
 		if (!empty($sales)) {
-			foreach ($sales as &$sale) {
-				$user = get_userdata($sale->user_id);
-				$sale->user_name = $user ? $user->display_name : 'Unknown';
-				$sale->is_child = $user ? in_array('club_child_user', $user->roles) : false;
-			}
-		}
+        foreach ($sales as &$sale) {
+            $user = get_userdata($sale->user_id);
+            $sale->user_name = $user ? $user->display_name : 'Unknown';
+            $sale->is_child = $user ? in_array('club_child_user', $user->roles) : false;
+            
+            // NEW: Calculate Customer Pays and Profit
+            $customer_pays = 0;
+            
+            // Parse products JSON
+            $products_json = $sale->products;
+            if (strpos($products_json, '\"') !== false) {
+                $products_json = stripslashes($products_json);
+            }
+            
+            $products = json_decode($products_json, true);
+            
+            if (is_array($products)) {
+                foreach ($products as $product) {
+                    $product_id = isset($product['id']) ? intval($product['id']) : 0;
+                    $quantity = isset($product['quantity']) ? intval($product['quantity']) : 1;
+                    
+                    $rrp = 0;
+
+                    // Method 1: Try ACF first
+                    if (function_exists('get_field')) {
+                        $rrp = floatval(get_field('rrp', $product_id));
+                    }
+                    
+                    // Method 2: If ACF fails, try direct database access
+                    if ($rrp == 0) {
+                        global $wpdb;
+                        $rrp_value = $wpdb->get_var($wpdb->prepare(
+                            "SELECT meta_value FROM {$wpdb->postmeta}
+                             WHERE post_id = %d AND meta_key = 'rrp_value' 
+                             LIMIT 1",
+                            $product_id
+                        ));
+                        
+                        if ($rrp_value !== null && is_numeric($rrp_value)) {
+                            $rrp = floatval($rrp_value);
+                        }
+                    }
+                    
+                    if ($rrp == 0 && $product_id > 0) {
+                        $wc_product = wc_get_product($product_id);
+                        if ($wc_product) {
+                            $rrp = floatval($wc_product->get_regular_price());
+                        }
+                    }
+                    
+                    // Calculate Customer Pays: RRP × Quantity
+                    $customer_pays += ($rrp * $quantity);
+                }
+            }
+            
+            $sale->customer_pays = $customer_pays;
+            $sale->profit = $customer_pays - floatval($sale->sale_amount);
+        }
+    }
 
 		wp_send_json_success(array(
 			'sales' => $sales
