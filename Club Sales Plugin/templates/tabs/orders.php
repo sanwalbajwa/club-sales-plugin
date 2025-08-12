@@ -35,7 +35,9 @@
                 <th><?php _e('Date', 'club-sales'); ?></th>
                 <th><?php _e('Customer', 'club-sales'); ?></th>
                 <th><?php _e('User', 'club-sales'); ?></th>
+                <th><?php _e('Customer Pays', 'club-sales'); ?></th>
                 <th><?php _e('Amount', 'club-sales'); ?></th>
+				<th><?php _e('Profit', 'club-sales'); ?></th>
                 <th><?php _e('Status', 'club-sales'); ?></th>
                 <th><?php _e('Actions', 'club-sales'); ?></th>
             </tr>
@@ -43,7 +45,7 @@
         <tbody id="orders-list">
             <!-- Orders will be loaded here -->
             <tr>
-                <td colspan="7" class="cs-loading"><?php _e('Loading orders...', 'club-sales'); ?></td>
+                <td colspan="9" class="cs-loading"><?php _e('Loading orders...', 'club-sales'); ?></td>
             </tr>
         </tbody>
     </table>
