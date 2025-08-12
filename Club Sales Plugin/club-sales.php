@@ -4,10 +4,10 @@ Plugin Name: Club Sales11
 Plugin URI: https://yourwebsite.com/club-sales
 Description: A comprehensive sales tracking system for clubs and schools with Klarna integration and child user management.
 Version: 2.0.0
-Author: Aftab 
+Author: Aftab
 Author URI: https://yourwebsite.com
 License: GPL v2 or later
-License URI: https://www.gnu.org/licenses/gpl-2.0.html 
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: club-sales
 */
 
@@ -305,7 +305,7 @@ class ClubSalesPlugin {
 			'nonce' => wp_create_nonce('cs-ajax-nonce'),
 			'pluginUrl' => CS_PLUGIN_URL,
 			'currency' => get_option('cs_settings')['currency'] ?? 'SEK',
-			'siteUrl' => get_site_url() // Add this line
+			'siteUrl' => get_site_url(), // Add this line
 		));
 
 		// Localize script for child users
