@@ -1,8 +1,7 @@
 <?php
 /**
  * Shortcodes for the Club Child Users
- */
-class CS_Child_Shortcodes {
+ */class CS_Child_Shortcodes {
     /**
      * Initialize shortcodes
      */
@@ -304,12 +303,7 @@ public static function sales_material_tab($specific_product_id = 0, $override_ch
                         <div class="cs-product-price">
                             <strong><?php 
                                 $currency = get_option('cs_settings')['currency'] ?? 'SEK';
-                                if ($use_swedish_rounding) {
-                                    $rounded_price = CS_Price_Calculator::round_price_to_nearest_nine($total_price);
-                                    echo number_format($rounded_price, 0) . ' ' . esc_html($currency);
-                                } else {
-                                    echo number_format($total_price, 0) . ' ' . esc_html($currency);
-                                }
+                                echo number_format($product['total_price'], 2, '.', '') . ' ' . esc_html($currency);
                             ?></strong>
                         </div>
                         
@@ -497,7 +491,9 @@ public static function child_orders_tab() {
                     <th><?php _e('Date', 'club-sales'); ?></th>
                     <th><?php _e('Customer', 'club-sales'); ?></th>
                     <th><?php _e('Seller', 'club-sales'); ?></th>
+                    <th><?php _e('Customer Pays', 'club-sales'); ?></th>
                     <th><?php _e('Amount', 'club-sales'); ?></th>
+                    <th><?php _e('Profit', 'club-sales'); ?></th>  
                     <th><?php _e('Status', 'club-sales'); ?></th>
                     <th><?php _e('Actions', 'club-sales'); ?></th>
                 </tr>
