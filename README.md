@@ -32,6 +32,18 @@ After activation, you can access the plugin features through:
 - Shortcodes for frontend display
 - Dashboard for sales and membership management
 
+<h3>Contributing</h3>
+
+We welcome contributions to improve the **Club Sales Plugin**!  
+If you'd like to contribute, please follow these steps:
+
+1. **Fork the repository** and create your branch:  
+   ```bash
+   git checkout -b feature/your-feature-name
+2. git commit -m "Add new feature: description"
+3. git push origin feature/your-feature-name
+
+
 <h3>Support</h3>
 
 For support inquiries, please create an issue in this repository.
