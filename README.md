@@ -1,4 +1,4 @@
-# Club Sales Plugin
+<h1># Club Sales Plugin</h1>
 
 A WordPress plugin for managing club sales and multi vendor site.
 
