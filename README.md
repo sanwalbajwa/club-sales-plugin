@@ -1,4 +1,4 @@
-<h1>Club Sales Plugin</h1>
+<h1>Club Sales Plugin </h1>
 
 A WordPress plugin for managing club sales and multi vendor site. We create 2 use user roles Club admin and Club admin child and there respective dashboards, with Products, Add Seller, Add Order, Orders and Stats tabs.
 I also immplement Klarna payments with Woocommerce as a payment gateway for the sales.
