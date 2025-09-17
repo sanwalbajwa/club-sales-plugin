@@ -1,4 +1,4 @@
-<?php
+<?php 
 /* 
 Plugin Name: Club Sales11 
 Plugin URI: https://yourwebsite.com/club-sales
