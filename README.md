@@ -4,7 +4,7 @@ A WordPress plugin for managing club sales and multi vendor site. We create 2 us
 I also immplement Klarna payments with Woocommerce as a payment gateway for the sales.
 
 <h2>Features</h2>
-
+ 
 - Club membership management
 - Sales tracking and reporting
 - Order management
