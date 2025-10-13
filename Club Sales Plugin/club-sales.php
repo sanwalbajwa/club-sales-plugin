@@ -38,7 +38,7 @@ function cs_check_dependencies() {
     
     return true;
 }
-
+ 
 function cs_activate_plugin() {
     // Create necessary database tables
     cs_create_tables();
