@@ -147,4 +147,4 @@ function cs_modify_user_role($user_id) {
         delete_transient('cs_user_registration_' . $user_id);
     }
 }
-add_action('user_register', 'cs_modify_user_role', 20); // Priority 20 to run after default role assignment
+add_action('user_register', 'cs_modify_user_role', 20); // Priority 20 to run after default role assignment 
