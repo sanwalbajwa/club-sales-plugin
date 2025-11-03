@@ -543,4 +543,4 @@ class CS_Child_Ajax {
             'message' => __('Product unassigned successfully.', 'club-sales')
         ));
     }
-}
+} 
