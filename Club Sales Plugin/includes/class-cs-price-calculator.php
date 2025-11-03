@@ -210,4 +210,4 @@ add_action('woocommerce_update_product', array('CS_Price_Calculator', 'auto_calc
 add_shortcode('cs_detailed_rounding_test', function() {
     // Wrap in a pre tag for better readability
     return '<pre>' . CS_Price_Calculator::detailed_rounding_test() . '</pre>';
-});
+}); 
