@@ -1,6 +1,6 @@
-<?php 
-/*      
-Plugin Name: Club Sales11  
+<?php
+/*
+Plugin Name: Club Sales11
 Plugin URI: https://yourwebsite.com/club-sales
 Description: A comprehensive sales tracking system for clubs and schools with Klarna integration and child user management.
 Version: 2.0.0
@@ -9,7 +9,7 @@ Author URI: https://yourwebsite.com
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: club-sales
-*/ 
+*/
 
 // Prevent direct access to this file
 if (!defined('ABSPATH')) {
@@ -38,7 +38,7 @@ function cs_check_dependencies() {
     
     return true;
 }
- 
+
 function cs_activate_plugin() {
     // Create necessary database tables
     cs_create_tables();
@@ -1950,3 +1950,162 @@ function cs_update_all_vat_fields($product_id, $vat_rate) {
         }
     }
 }
+function cs_debug_rrp_shortcode($atts) {
+    $atts = shortcode_atts(array(
+        'product_id' => 0,
+    ), $atts);
+    
+    $product_id = intval($atts['product_id']);
+    
+    if (!$product_id) {
+        return '<p>Please provide product_id parameter: [cs_debug_rrp product_id="123"]</p>';
+    }
+    
+    $current_user = wp_get_current_user();
+    $is_child = in_array('club_child_user', $current_user->roles);
+    $user_type = $is_child ? 'CHILD' : 'ADMIN';
+    
+    ob_start();
+    ?>
+    <div style="background: #fff; padding: 20px; border: 1px solid #ddd; margin: 20px 0; color: #000;">
+        <h3>RRP Debug for Product <?php echo $product_id; ?> - User Type: <?php echo $user_type; ?></h3>
+        
+        <?php
+        global $wpdb;
+        
+        // Test 1: Check if product exists
+        $product_exists = $wpdb->get_row($wpdb->prepare(
+            "SELECT ID, post_title, post_status FROM {$wpdb->posts} WHERE ID = %d AND post_type = 'product'", 
+            $product_id
+        ));
+        
+        echo "<h4>Test 1: Product Exists Check</h4>";
+        if ($product_exists) {
+            echo "<p style='color: green;'>✓ Product exists: {$product_exists->post_title} (Status: {$product_exists->post_status})</p>";
+        } else {
+            echo "<p style='color: red;'>✗ Product does not exist or is not a product type</p>";
+            echo "</div>";
+            return ob_get_clean();
+        }
+        
+        // Test 2: Direct DB query for RRP
+        echo "<h4>Test 2: Direct Database Query</h4>";
+        $db_rrp = $wpdb->get_var($wpdb->prepare(
+            "SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key = 'rrp'", 
+            $product_id
+        ));
+        echo "<p><strong>SQL:</strong> " . $wpdb->last_query . "</p>";
+        echo "<p><strong>Result:</strong> " . var_export($db_rrp, true) . "</p>";
+        
+        if ($db_rrp) {
+            echo "<p style='color: green;'>✓ RRP found in database: {$db_rrp}</p>";
+        } else {
+            echo "<p style='color: red;'>✗ No RRP found in database</p>";
+        }
+        
+        // Test 3: All meta for this product
+        echo "<h4>Test 3: All Meta Data for Product</h4>";
+        $all_meta = $wpdb->get_results($wpdb->prepare(
+            "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = %d ORDER BY meta_key", 
+            $product_id
+        ));
+        
+        echo "<table border='1' style='border-collapse: collapse; width: 100%;'>";
+        echo "<tr><th>Meta Key</th><th>Meta Value</th></tr>";
+        foreach ($all_meta as $meta) {
+            $highlight = (strpos($meta->meta_key, 'rrp') !== false) ? 'background-color: yellow;' : '';
+            echo "<tr style='{$highlight}'><td>{$meta->meta_key}</td><td>{$meta->meta_value}</td></tr>";
+        }
+        echo "</table>";
+        
+        // Test 4: WordPress get_post_meta
+        echo "<h4>Test 4: WordPress get_post_meta()</h4>";
+        $wp_meta = get_post_meta($product_id, 'rrp', true);
+        echo "<p><strong>get_post_meta({$product_id}, 'rrp', true):</strong> " . var_export($wp_meta, true) . "</p>";
+        
+        if ($wp_meta) {
+            echo "<p style='color: green;'>✓ RRP found via get_post_meta: {$wp_meta}</p>";
+        } else {
+            echo "<p style='color: red;'>✗ No RRP found via get_post_meta</p>";
+        }
+        
+        // Test 5: ACF get_field
+        echo "<h4>Test 5: ACF get_field()</h4>";
+        if (function_exists('get_field')) {
+            $acf_rrp = get_field('rrp', $product_id);
+            echo "<p><strong>get_field('rrp', {$product_id}):</strong> " . var_export($acf_rrp, true) . "</p>";
+            
+            if ($acf_rrp) {
+                echo "<p style='color: green;'>✓ RRP found via ACF: {$acf_rrp}</p>";
+            } else {
+                echo "<p style='color: red;'>✗ No RRP found via ACF</p>";
+            }
+        } else {
+            echo "<p style='color: red;'>✗ ACF get_field function not available</p>";
+        }
+        
+        // Test 6: WooCommerce Product
+        echo "<h4>Test 6: WooCommerce Product Data</h4>";
+        $wc_product = wc_get_product($product_id);
+        if ($wc_product) {
+            $regular_price = $wc_product->get_regular_price();
+            $sale_price = $wc_product->get_sale_price();
+            echo "<p><strong>Regular Price:</strong> {$regular_price}</p>";
+            echo "<p><strong>Sale Price:</strong> {$sale_price}</p>";
+            echo "<p><strong>Display Price:</strong> " . $wc_product->get_price() . "</p>";
+        } else {
+            echo "<p style='color: red;'>✗ Could not load WooCommerce product</p>";
+        }
+        
+        // Test 7: Child Product Assignment Check
+        if ($is_child) {
+            echo "<h4>Test 7: Child Product Assignment Check</h4>";
+            $assigned = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}cs_child_products WHERE child_id = %d AND product_id = %d",
+                $current_user->ID,
+                $product_id
+            ));
+            
+            if ($assigned) {
+                echo "<p style='color: green;'>✓ Product is assigned to this child user</p>";
+                echo "<p><strong>Assignment details:</strong> " . print_r($assigned, true) . "</p>";
+            } else {
+                echo "<p style='color: orange;'>⚠ Product is NOT assigned to this child user</p>";
+            }
+        }
+        
+        // Test 8: Recent Sales Check
+        echo "<h4>Test 8: Recent Sales with This Product</h4>";
+        $recent_sales = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, user_id, customer_name, sale_amount, customer_pays, products 
+             FROM {$wpdb->prefix}cs_sales 
+             WHERE products LIKE %s 
+             ORDER BY id DESC LIMIT 5",
+            '%"id":' . $product_id . '%'
+        ));
+        
+        if ($recent_sales) {
+            echo "<table border='1' style='border-collapse: collapse; width: 100%;'>";
+            echo "<tr><th>Sale ID</th><th>User ID</th><th>Customer</th><th>Sale Amount</th><th>Customer Pays</th></tr>";
+            foreach ($recent_sales as $sale) {
+                $highlight = ($sale->customer_pays == 0) ? 'background-color: #ffcccc;' : '';
+                echo "<tr style='{$highlight}'>
+                    <td>{$sale->id}</td>
+                    <td>{$sale->user_id}</td>
+                    <td>{$sale->customer_name}</td>
+                    <td>{$sale->sale_amount}</td>
+                    <td>{$sale->customer_pays}</td>
+                </tr>";
+            }
+            echo "</table>";
+        } else {
+            echo "<p>No recent sales found with this product</p>";
+        }
+        
+        ?>
+    </div>
+    <?php
+    
+    return ob_get_clean();
+}
+add_shortcode('cs_debug_rrp', 'cs_debug_rrp_shortcode');
