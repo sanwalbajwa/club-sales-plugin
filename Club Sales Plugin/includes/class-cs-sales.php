@@ -3,6 +3,27 @@ class CS_Sales {
     public static function add_sale($data) {
     global $wpdb;
     
+    // Calculate customer_pays from products at time of sale
+    $customer_pays = 0;
+    $products_data = json_decode(wp_unslash($data['products']), true);
+    
+    if (is_array($products_data)) {
+        foreach ($products_data as $product) {
+            $product_id = isset($product['id']) ? intval($product['id']) : 0;
+            $quantity = isset($product['quantity']) ? intval($product['quantity']) : 1;
+            
+            if ($product_id > 0) {
+                // Get RRP at time of sale
+                $rrp = 0;
+                // Try ACF first
+                if (function_exists('get_field')) {
+                    $rrp = floatval(get_field('rrp', $product_id));
+                }
+                $customer_pays += ($rrp * $quantity);
+            }
+        }
+    }
+    
     $sale_data = array(
         'user_id' => get_current_user_id(),
         'customer_name' => sanitize_text_field($data['customer_name']),
@@ -10,27 +31,30 @@ class CS_Sales {
         'email' => $data['email'] ?? '',
         'address' => sanitize_textarea_field($data['address'] ?? ''),
         'sale_amount' => floatval($data['sale_amount']),
+        'customer_pays' => $customer_pays, // NEW: Store customer_pays
         'sale_date' => sanitize_text_field($data['sale_date']),
         'notes' => sanitize_textarea_field($data['notes'] ?? ''),
-        'products' => wp_unslash($data['products']), // Use wp_unslash instead of sanitize_text_field
+        'products' => wp_unslash($data['products']),
         'status' => 'pending'
     );
     
     // Insert the sale record
     $sale_inserted = $wpdb->insert($wpdb->prefix . 'cs_sales', $sale_data);
-    do_action('cs_order_details_viewed', $sale_data + ['id' => $wpdb->insert_id]);
-
-    // If sale was inserted successfully, add an opportunity record
+    
     if ($sale_inserted) {
         $opportunity_data = array(
             'user_id' => get_current_user_id(),
             'status' => 'completed'
         );
         $wpdb->insert($wpdb->prefix . 'cs_opportunities', $opportunity_data);
+        
+        // Trigger order confirmation email
+        do_action('cs_order_details_viewed', $sale_data + ['id' => $wpdb->insert_id]);
+        
         if (!empty($sale_data['email'])) {
-            // Add sale data to the hook
             do_action('cs_after_sale_added', $sale_data);
         }
+        
         return $wpdb->insert_id;
     }
     
@@ -66,77 +90,115 @@ class CS_Sales {
         return $wpdb->get_results($wpdb->prepare($sql, $group_id));
     }
     
-    public static function search_products($search_term) {
-        // Add debugging
-        error_log('CS_Sales::search_products called with term: ' . $search_term);
-        
-        // Check if WooCommerce is active
-        if (!class_exists('WooCommerce')) {
-            error_log('WooCommerce is not active');
-            return array();
-        }
-
-        global $wpdb;
-
-        // Combine queries to exclude out-of-stock products
-        $query = $wpdb->prepare(
-            "SELECT DISTINCT p.ID, p.post_title 
-            FROM {$wpdb->posts} p
-            LEFT JOIN {$wpdb->postmeta} pm_stock_status ON p.ID = pm_stock_status.post_id 
-                AND pm_stock_status.meta_key = '_stock_status'
-            WHERE p.post_type = 'product' 
-            AND p.post_status = 'publish'
-            AND (pm_stock_status.meta_value IS NULL OR pm_stock_status.meta_value != 'outofstock')"
-        );
-
-        // Execute the query to get product IDs
-        $product_ids = $wpdb->get_col($query);
-
-        // If no products found, return empty array
-        if (empty($product_ids)) {
-            return array();
-        }
-
-        // Prepare for WooCommerce product retrieval
-        $results = array();
-
-        foreach ($product_ids as $product_id) {
-            $product = wc_get_product($product_id);
-
-            if ($product) {
-                // Use the club sales pricing calculation
-                $club_sales_price = CS_Price_Calculator::get_club_sales_price($product_id);
-
-                // Get the product permalink and handle potential errors
-                try {
-                    $permalink = $product->get_permalink();
-                    // If permalink is empty or invalid, generate a fallback URL
-                    if (empty($permalink) || $permalink === '#') {
-                        $permalink = add_query_arg('product_id', $product_id, home_url('/product'));
-                    }
-                } catch (Exception $e) {
-                    // Fallback to a generic URL if get_permalink() fails
-                    $permalink = add_query_arg('product_id', $product_id, home_url('/product'));
-                    error_log('Error getting permalink for product ' . $product_id . ': ' . $e->getMessage());
-                }
-
-                $results[] = array(
-                    'id' => $product->get_id(),
-                    'name' => $product->get_name(),
-                    'sku' => $product->get_sku(),
-                    'price' => wc_get_price_to_display($product),
-                    'total_price' => $club_sales_price,
-                    'regular_price' => $product->get_regular_price(),
-                    'stock' => $product->get_stock_quantity(),
-                    'image' => wp_get_attachment_image_url($product->get_image_id(), 'thumbnail'),
-                    'permalink' => $permalink // Add the permalink explicitly
-                );
-            }
-        }
-        
-        error_log('Returning ' . count($results) . ' products');
-        return $results;
+public static function search_products($search_term) {
+    if (!class_exists('WooCommerce')) {
+        return array();
     }
+
+    global $wpdb;
+
+    $query = "SELECT DISTINCT p.ID, p.post_title 
+        FROM {$wpdb->posts} p
+        LEFT JOIN {$wpdb->postmeta} pm_stock_status ON p.ID = pm_stock_status.post_id 
+            AND pm_stock_status.meta_key = '_stock_status'
+        WHERE p.post_type = 'product' 
+        AND p.post_status = 'publish'
+        AND (pm_stock_status.meta_value IS NULL OR pm_stock_status.meta_value != 'outofstock')";
+
+    $product_ids = $wpdb->get_col($query);
+
+    if (empty($product_ids)) {
+        return array();
+    }
+
+    $results = array();
+
+    foreach ($product_ids as $product_id) {
+        $product = wc_get_product($product_id);
+
+        if ($product) {
+            $club_sales_price = CS_Price_Calculator::get_club_sales_price($product_id);
+
+            try {
+                $permalink = $product->get_permalink();
+                if (empty($permalink) || $permalink === '#') {
+                    $permalink = add_query_arg('product_id', $product_id, home_url('/product'));
+                }
+            } catch (Exception $e) {
+                $permalink = add_query_arg('product_id', $product_id, home_url('/product'));
+            }
+
+            // Get vendor information
+            $vendor_info = self::get_product_vendor_info($product_id);
+
+            $results[] = array(
+                'id' => $product->get_id(),
+                'name' => $product->get_name(),
+                'sku' => $product->get_sku(),
+                'price' => wc_get_price_to_display($product),
+                'total_price' => $club_sales_price,
+                'regular_price' => $product->get_regular_price(),
+                'stock' => $product->get_stock_quantity(),
+                'image' => wp_get_attachment_image_url($product->get_image_id(), 'thumbnail'),
+                'permalink' => $permalink,
+                'vendor_id' => $vendor_info['vendor_id'],
+                'vendor_name' => $vendor_info['vendor_name'],
+                'store_name' => $vendor_info['store_name'],
+                // Debug field - will show in console
+                'debug_vendor' => $vendor_info
+            );
+        }
+    }
+    
+    return $results;
+}
+
+/**
+ * Get vendor information for a product
+ */
+public static function get_product_vendor_info($product_id) {
+    $vendor_info = array(
+        'vendor_id' => 0,
+        'vendor_name' => 'N/A',
+        'store_name' => 'N/A'
+    );
+
+    // Get the post to find the author (vendor)
+    $post = get_post($product_id);
+    
+    if (!$post) {
+        return $vendor_info;
+    }
+    
+    $vendor_id = $post->post_author;
+    
+    if (!empty($vendor_id) && $vendor_id > 0) {
+        $vendor_info['vendor_id'] = $vendor_id;
+        
+        // Get vendor display name
+        $vendor_data = get_userdata($vendor_id);
+        if ($vendor_data) {
+            $vendor_info['vendor_name'] = $vendor_data->display_name;
+        }
+        
+        // Get store name from WCFM Marketplace
+        $store_name = get_user_meta($vendor_id, 'wcfmmp_store_name', true);
+        
+        // Fallback to store_name if wcfmmp_store_name is empty
+        if (empty($store_name)) {
+            $store_name = get_user_meta($vendor_id, 'store_name', true);
+        }
+        
+        if (!empty($store_name)) {
+            $vendor_info['store_name'] = $store_name;
+        } else {
+            // Last fallback to vendor display name
+            $vendor_info['store_name'] = $vendor_info['vendor_name'];
+        }
+    }
+
+    return $vendor_info;
+}
     
     /**
      * Calculate total profit based on Total Price - RRP for all products in orders
@@ -236,20 +298,12 @@ public static function calculate_total_profit($user_id = null) {
                         }
                     }
                     
-                    // NEW CALCULATION: (Sale Price × Quantity) - RRP
+                    // NEW CALCULATION: (Sale Price Ã— Quantity) - RRP
                     // This treats RRP as a total cost, not per-unit
                     $product_profit = ($rrp - $sale_price) * $quantity;
                     
                     // Add to sale profit
                     $sale_profit += $product_profit;
-                    
-                    // Debug logging with new calculation
-                    error_log("  Product ID: {$product_id}");
-                    error_log("  Sale Price: {$sale_price} SEK");
-                    error_log("  Quantity: {$quantity}");
-                    error_log("  Total Revenue: ({$sale_price} × {$quantity}) = {$total_revenue} SEK");
-                    error_log("  RRP (Cost): {$rrp} SEK (source: {$rrp_source})");
-                    error_log("  Product Profit: {$total_revenue} - {$rrp} = {$product_profit} SEK");
                 } else {
                     error_log("  Invalid product ID: " . $product_id);
                 }
@@ -398,4 +452,4 @@ public static function calculate_total_profit($user_id = null) {
         
         return $stats;
     }
-}
+} 
