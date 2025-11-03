@@ -188,4 +188,4 @@ class CS_Order_Confirmation {
 }
 
 // Initialize the class
-CS_Order_Confirmation::init();
+CS_Order_Confirmation::init(); 
