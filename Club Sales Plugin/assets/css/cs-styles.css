@@ -18,7 +18,7 @@ form.cs-auth-form label {
 .cs-dashboard {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 20px;
+/*     padding: 20px; */
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
     color: #333;
     box-sizing: border-box;
@@ -55,7 +55,7 @@ form.cs-auth-form label {
 .cs-tab-list {
     display: flex;
     list-style: none;
-    padding: 0;
+    padding: 7px;
     margin: 0 0 20px 0;
     border-bottom: 1px solid #e0e0e0;
 }
@@ -381,10 +381,6 @@ form.cs-auth-form label {
 }
 
 /* Orders Table */
-.cs-orders-container {
-    overflow-x: auto;
-}
-
 .cs-orders-table {
     width: 100%;
     border-collapse: collapse;
@@ -392,7 +388,7 @@ form.cs-auth-form label {
 
 .cs-orders-table th,
 .cs-orders-table td {
-    padding: 12px 15px;
+    padding: 12px 10px;
     text-align: left;
     border-bottom: 1px solid #eee;
 }
@@ -454,6 +450,7 @@ form.cs-auth-form label {
 .cs-filter-container {
     display: flex;
     align-items: center;
+	gap: 10px;
 }
 
 .cs-filter-container select {
@@ -461,6 +458,7 @@ form.cs-auth-form label {
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 14px;
+	width: 170px;
 }
 
 /* Stats Dashboard */
@@ -657,12 +655,14 @@ form.cs-auth-form label {
 /* Responsive Design */
 @media (max-width: 768px) {
     .cs-tab-list {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        overflow: auto;
     }
     
     .cs-tab-item {
         flex-grow: 1;
-        text-align: center;
+        text-align: start;
+		padding: 0px 20px;
     }
     
     .cs-form-row {
@@ -876,4 +876,486 @@ h1.cs-product-title, h3.cs-sales-material-title, .cs-full-description h3{
     background-color: #f57c00;
     border: none;
     color: white;
+}
+.wcfm_product_popup_button_wrapper {
+    display: none !important;
+}
+#dropdown_product_product_brand,
+#dropdown_product_product_brand + .select2,
+#dropdown_product_type {
+  display: none !important;
+}
+span.wcfm_products_limit_label {
+    visibility: hidden;
+}
+.cs-status-ordered_from_supplier,
+.cs-status-ordered-from-supplier {
+    background-color: #E3F2FD;
+    color: #1976D2;
+}
+.cs-order-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.cs-order-action {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #4CAF50;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.cs-order-action:hover {
+    background-color: rgba(76, 175, 80, 0.1);
+    text-decoration: none;
+    color: #45a049;
+}
+
+/* View Order Button */
+.cs-view-order {
+    background-color: #2196F3;
+    color: white;
+    border: 1px solid #2196F3;
+}
+
+.cs-view-order:hover {
+    background-color: #0b7dda;
+    color: white;
+    border-color: #0b7dda;
+}
+
+/* Mark as Delivered Button */
+.cs-mark-delivered {
+    background-color: #4CAF50 !important;
+    color: white !important;
+    border: 1px solid #4CAF50;
+    margin-left: 5px;
+}
+
+.cs-mark-delivered:hover {
+    background-color: #45a049 !important;
+    color: white !important;
+    border-color: #45a049;
+}
+
+.cs-mark-delivered:disabled {
+    background-color: #cccccc !important;
+    color: #666666 !important;
+    border-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* Delete Order Button */
+.cs-delete-order {
+    background-color: #f44336;
+    color: white;
+    border: 1px solid #f44336;
+    margin-left: 5px;
+}
+
+.cs-delete-order:hover {
+    background-color: #d32f2f;
+    color: white;
+    border-color: #d32f2f;
+}
+
+.cs-delete-order:disabled {
+    background-color: #cccccc;
+    color: #666666;
+    border-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* Status-specific styling for completed orders */
+.cs-status-completed {
+    background-color: #E8F5E9;
+    color: #2E7D32;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Status-specific styling for ordered from supplier */
+.cs-status-ordered_from_supplier,
+.cs-status-ordered-from-supplier {
+    background-color: #E3F2FD;
+    color: #1976D2;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Status-specific styling for pending */
+.cs-status-pending {
+    background-color: #FFF9C4;
+    color: #F57F17;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+    .cs-order-actions {
+        flex-direction: row;
+		flex-wrap: nowrap;
+        gap: 4px;
+/* 		width: max-content;
+    	flex-direction: row; */
+    }
+    
+    .cs-order-action {
+        width: 100%;
+        text-align: center;
+        margin-left: 0 !important;
+    }
+    
+    .cs-orders-table {
+        font-size: 12px;
+    }
+    
+    .cs-orders-table th,
+    .cs-orders-table td {
+        padding: 8px 4px;
+    }
+}
+/* Enhanced Edit Order Modal */
+#cs-edit-order-modal .cs-modal-content {
+    max-width: 700px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.cs-form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.cs-form-row .cs-form-group {
+    flex: 1;
+}
+
+.cs-status-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #333;
+    background-color: #fff;
+}
+
+.cs-status-select:focus {
+    border-color: #4CAF50;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+.cs-form-note {
+    color: #666;
+    font-size: 12px;
+    font-style: italic;
+    margin-top: 4px;
+    display: block;
+}
+
+.cs-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.cs-cancel-btn {
+    background-color: #f5f5f5;
+    color: #333;
+    border: 1px solid #ddd;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.cs-cancel-btn:hover {
+    background-color: #e9e9e9;
+}
+
+/* Status indicator colors in select */
+.cs-status-select option[value="pending"] {
+    background-color: #fff3cd;
+}
+
+.cs-status-select option[value="ordered_from_supplier"] {
+    background-color: #d1ecf1;
+}
+
+.cs-status-select option[value="completed"] {
+    background-color: #d4edda;
+}
+
+@media (max-width: 768px) {
+    .cs-form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    #cs-edit-order-modal .cs-modal-content {
+        width: 95%;
+        margin: 2% auto;
+    }
+}
+/* Deleted Orders Styling */
+.cs-deleted-row {
+    background-color: #ffeaa7 !important;
+    opacity: 0.7;
+}
+
+.cs-deleted-row:hover {
+    background-color: #fdcb6e !important;
+}
+
+.cs-status-deleted {
+    background-color: #fab1a0;
+    color: #e17055;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Restore button styling */
+.cs-restore-order {
+    background-color: #00b894 !important;
+    color: white !important;
+    border: 1px solid #00b894;
+    margin-right: 5px;
+}
+
+.cs-restore-order:hover {
+    background-color: #00a085 !important;
+    color: white !important;
+    border-color: #00a085;
+}
+
+.cs-restore-order:disabled {
+    background-color: #cccccc !important;
+    color: #666666 !important;
+    border-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* Permanently delete button styling */
+.cs-permanently-delete-order {
+    background-color: #d63031 !important;
+    color: white !important;
+    border: 1px solid #d63031;
+    margin-left: 5px;
+}
+
+.cs-permanently-delete-order:hover {
+    background-color: #b71c1c !important;
+    color: white !important;
+    border-color: #b71c1c;
+}
+
+.cs-permanently-delete-order:disabled {
+    background-color: #cccccc !important;
+    color: #666666 !important;
+    border-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* Profit indicators for better visibility */
+.cs-profit-positive {
+    color: #00b894 !important;
+    font-weight: bold;
+}
+
+.cs-profit-negative {
+    color: #e74c3c !important;
+    font-weight: bold;
+}
+
+/* Additional styling for deleted orders status */
+.cs-deleted-row .cs-order-status {
+    background-color: #e17055 !important;
+    color: white !important;
+}
+
+/* Icon styling for action buttons */
+.cs-restore-order .dashicons,
+.cs-permanently-delete-order .dashicons {
+    margin-right: 5px;
+    vertical-align: middle;
+}
+/* Store/Vendor name styling */
+.cs-product-vendor {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #666;
+    font-size: 12px;
+    margin-bottom: 5px;
+    padding: 4px 8px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+}
+
+.cs-product-vendor .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    color: #4CAF50;
+}
+
+.cs-product-info {
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+/* Mobile Hamburger Menu */
+.cs-mobile-menu-item {
+    display: none;
+    position: relative;
+}
+
+.cs-mobile-menu-item .cs-hamburger-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #333;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+}
+
+.cs-mobile-menu-item .cs-hamburger-btn:hover {
+    color: #4CAF50;
+}
+
+.cs-mobile-menu-item .cs-hamburger-btn .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+}
+
+.cs-mobile-tabs-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    right: 0;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-radius: 4px;
+    z-index: 9999;
+    margin-top: 5px;
+    max-height: 400px;
+	width: 260px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+}
+
+.cs-mobile-tabs-dropdown.show {
+    display: block !important;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.cs-mobile-tabs-dropdown .cs-tab-item {
+    display: block !important;
+    width: 100%;
+    padding: 15px 20px;
+    border: none;
+    border-radius: 0;
+    border-bottom: 1px solid #f0f0f0;
+    text-align: left;
+    background: white;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin: 0;
+    margin-right: 0 !important;
+}
+
+.cs-mobile-tabs-dropdown .cs-tab-item:first-child {
+    border-radius: 4px 4px 0 0;
+}
+
+.cs-mobile-tabs-dropdown .cs-tab-item:last-child {
+    border-radius: 0 0 4px 4px;
+    border-bottom: none;
+}
+
+.cs-mobile-tabs-dropdown .cs-tab-item:hover {
+    background-color: #f5f5f5;
+}
+
+.cs-mobile-tabs-dropdown .cs-tab-item.active {
+    background-color: #e8f5e9;
+    color: #4CAF50;
+    font-weight: 600;
+}
+
+.cs-mobile-tabs-dropdown .cs-tab-item.active::after {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .cs-mobile-menu-item {
+        display: block;
+    }
+    
+    .cs-tab-list {
+        padding: 7px;
+        overflow: visible !important;
+        position: relative;
+    }
+    
+    .cs-tabs {
+        position: relative;
+        overflow: visible;
+    }
+    
+    /* Hide all tabs except hamburger on mobile */
+    .cs-tab-item {
+        display: none !important;
+    }
 }
