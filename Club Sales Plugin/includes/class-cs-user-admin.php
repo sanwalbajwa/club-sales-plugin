@@ -198,4 +198,4 @@ function cs_filter_users_by_custom_fields($query) {
         $query->query_vars['meta_query'] = $meta_query;
     }
 }
-add_action('pre_get_users', 'cs_filter_users_by_custom_fields');
+add_action('pre_get_users', 'cs_filter_users_by_custom_fields'); 
