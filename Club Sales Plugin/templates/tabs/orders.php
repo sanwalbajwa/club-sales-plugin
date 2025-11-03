@@ -3,14 +3,16 @@
 	<div class="cs-filter-parent-container">
     <div class="cs-filter-container">
         <select id="order-status-filter">
-            <option value=""><?php _e('All Orders', 'club-sales'); ?></option>
-            <option value="pending"><?php _e('Pending', 'club-sales'); ?></option>
-            <option value="completed"><?php _e('Completed', 'club-sales'); ?></option>
-        </select>
+			<option value=""><?php _e('All Orders', 'club-sales'); ?></option>
+			<option value="pending"><?php _e('Pending', 'club-sales'); ?></option>
+			<option value="ordered_from_supplier"><?php _e('Ordered from Supplier', 'club-sales'); ?></option>
+			<option value="completed"><?php _e('Completed', 'club-sales'); ?></option>
+			<option value="deleted"><?php _e('My Deleted Orders', 'club-sales'); ?></option>
+		</select>
         
         <?php if (!CS_Child_Manager::is_child_user()): ?>
         <select id="order-user-filter">
-            <option value=""><?php _e('All Users', 'club-sales'); ?></option>
+            <option value=""><?php _e('My & Children Orders', 'club-sales'); ?></option>
             <option value="my"><?php _e('My Orders', 'club-sales'); ?></option>
             <option value="children"><?php _e('Children Orders', 'club-sales'); ?></option>
         </select>
