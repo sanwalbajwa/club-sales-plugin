@@ -13,6 +13,9 @@ class CS_Ajax {
 		add_action('wp_ajax_cs_reset_order_status', array(__CLASS__, 'handle_reset_order_status'));
 		// New: Add auto-update handler
 		add_action('wp_ajax_cs_check_stats_update', array(__CLASS__, 'handle_check_stats_update'));
+		add_action('wp_ajax_cs_mark_order_delivered', array(__CLASS__, 'handle_mark_order_delivered'));
+		add_action('wp_ajax_cs_restore_sale', array(__CLASS__, 'handle_restore_sale'));
+        add_action('wp_ajax_cs_permanently_delete_sale', array(__CLASS__, 'handle_permanently_delete_sale'));
 	}
     
 	// New: Handle stats update checking
@@ -192,7 +195,7 @@ public static function handle_product_search() {
         $results = CS_Sales::search_products($search_term);
         error_log('Products Found: ' . count($results));
         
-        // Prune unnecessary data to reduce payload
+        // Prune unnecessary data to reduce payload BUT KEEP VENDOR INFO
         $modified_results = array_map(function($product) {
             // Only include essential data
             return [
@@ -201,7 +204,11 @@ public static function handle_product_search() {
                 'sku' => $product['sku'] ?? 'N/A',
                 'total_price' => CS_Price_Calculator::get_club_sales_price($product['id']),
                 'image' => $product['image'] ?? '',
-                'permalink' => $product['permalink'] ?? ''
+                'permalink' => $product['permalink'] ?? '',
+                // ADD VENDOR INFO HERE
+                'vendor_id' => $product['vendor_id'] ?? 0,
+                'vendor_name' => $product['vendor_name'] ?? 'N/A',
+                'store_name' => $product['store_name'] ?? 'N/A'
             ];
         }, $results);
         
@@ -231,7 +238,12 @@ public static function handle_product_search() {
         wp_send_json_error('Invalid date format');
         return;
     }
-    
+    $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : '';
+    $allowed_statuses = ['pending', 'ordered_from_supplier', 'completed'];
+    if (!empty($status) && !in_array($status, $allowed_statuses)) {
+        wp_send_json_error('Invalid status');
+        return;
+    }
     // Include email in update data
     $update_data = array(
         'customer_name' => sanitize_text_field($_POST['customer_name']),
@@ -241,6 +253,9 @@ public static function handle_product_search() {
         'sale_date' => $sale_date,
         'notes' => sanitize_textarea_field($_POST['notes'])
     );
+    if (!empty($status)) {
+        $update_data['status'] = $status;
+    }
     
     global $wpdb;
     
@@ -385,7 +400,6 @@ public static function handle_add_sale() {
     // Check nonce for security
     check_ajax_referer('cs-ajax-nonce', 'nonce');
     
-    // Get the sale ID to delete
     $sale_id = isset($_POST['sale_id']) ? intval($_POST['sale_id']) : 0;
     
     if (!$sale_id) {
@@ -397,7 +411,7 @@ public static function handle_add_sale() {
     
     // First, verify the current user has permission to delete this sale
     $sale = $wpdb->get_row($wpdb->prepare(
-        "SELECT user_id FROM {$wpdb->prefix}cs_sales WHERE id = %d",
+        "SELECT user_id, deleted_at FROM {$wpdb->prefix}cs_sales WHERE id = %d",
         $sale_id
     ));
     
@@ -407,20 +421,21 @@ public static function handle_add_sale() {
         return;
     }
     
-    // Get current user ID
-    $current_user_id = get_current_user_id();
+    // Check if already deleted
+    if ($sale->deleted_at) {
+        wp_send_json_error('Sale is already deleted');
+        return;
+    }
     
-    // Check if user is the owner of the sale or can manage children
+    // Permission check (same as before)
+    $current_user_id = get_current_user_id();
     $can_delete = false;
     
-    // User can delete their own sales
     if ($sale->user_id == $current_user_id) {
         $can_delete = true;
     }
     
-    // Check if user can manage children (for child user sales)
     if (!$can_delete && CS_Child_Manager::can_manage_children()) {
-        // Check if the sale belongs to one of the user's children
         $children = CS_Child_Manager::get_parent_children($current_user_id);
         $child_ids = wp_list_pluck($children, 'id');
         
@@ -429,33 +444,25 @@ public static function handle_add_sale() {
         }
     }
     
-    // Admins can always delete
     if (!$can_delete && current_user_can('manage_options')) {
         $can_delete = true;
     }
     
-    // If user cannot delete, return an error
     if (!$can_delete) {
         wp_send_json_error('You do not have permission to delete this sale');
         return;
     }
     
-    // Perform deletion
-    $deleted_sales = $wpdb->delete(
-        $wpdb->prefix . 'cs_sales', 
-        array('id' => $sale_id), 
+    // Soft delete - set deleted_at timestamp
+    $result = $wpdb->update(
+        $wpdb->prefix . 'cs_sales',
+        array('deleted_at' => current_time('mysql')),
+        array('id' => $sale_id),
+        array('%s'),
         array('%d')
     );
     
-    // Also delete related opportunities
-    $wpdb->delete(
-        $wpdb->prefix . 'cs_opportunities', 
-        array('sale_id' => $sale_id), 
-        array('%d')
-    );
-    
-    if ($deleted_sales !== false) {
-        // Update the stats last updated timestamp
+    if ($result !== false) {
         update_user_meta($current_user_id, 'cs_stats_last_updated', time());
         
         wp_send_json_success(array(
@@ -467,6 +474,153 @@ public static function handle_add_sale() {
         wp_send_json_error('Could not delete sale');
     }
 }
+
+public static function handle_restore_sale() {
+    check_ajax_referer('cs-ajax-nonce', 'nonce');
+    
+    $sale_id = isset($_POST['sale_id']) ? intval($_POST['sale_id']) : 0;
+    
+    if (!$sale_id) {
+        wp_send_json_error('Invalid sale ID');
+        return;
+    }
+    
+    global $wpdb;
+    
+    // Get sale details
+    $sale = $wpdb->get_row($wpdb->prepare(
+        "SELECT user_id, deleted_at FROM {$wpdb->prefix}cs_sales WHERE id = %d",
+        $sale_id
+    ));
+    
+    if (!$sale || !$sale->deleted_at) {
+        wp_send_json_error('Sale not found or not deleted');
+        return;
+    }
+    
+    // Permission check (same logic as delete)
+    $current_user_id = get_current_user_id();
+    $can_restore = false;
+    
+    if ($sale->user_id == $current_user_id) {
+        $can_restore = true;
+    }
+    
+    if (!$can_restore && CS_Child_Manager::can_manage_children()) {
+        $children = CS_Child_Manager::get_parent_children($current_user_id);
+        $child_ids = wp_list_pluck($children, 'id');
+        
+        if (in_array($sale->user_id, $child_ids)) {
+            $can_restore = true;
+        }
+    }
+    
+    if (!$can_restore && current_user_can('manage_options')) {
+        $can_restore = true;
+    }
+    
+    if (!$can_restore) {
+        wp_send_json_error('You do not have permission to restore this sale');
+        return;
+    }
+    
+    // Restore - clear deleted_at timestamp
+    $result = $wpdb->update(
+        $wpdb->prefix . 'cs_sales',
+        array('deleted_at' => null),
+        array('id' => $sale_id),
+        array('%s'),
+        array('%d')
+    );
+    
+    if ($result !== false) {
+        update_user_meta($current_user_id, 'cs_stats_last_updated', time());
+        
+        wp_send_json_success(array(
+            'message' => 'Sale restored successfully',
+            'sale_id' => $sale_id,
+            'stats_updated' => true
+        ));
+    } else {
+        wp_send_json_error('Could not restore sale');
+    }
+}
+
+public static function handle_permanently_delete_sale() {
+    check_ajax_referer('cs-ajax-nonce', 'nonce');
+    
+    $sale_id = isset($_POST['sale_id']) ? intval($_POST['sale_id']) : 0;
+    
+    if (!$sale_id) {
+        wp_send_json_error('Invalid sale ID');
+        return;
+    }
+    
+    global $wpdb;
+    
+    // Get sale details
+    $sale = $wpdb->get_row($wpdb->prepare(
+        "SELECT user_id, deleted_at FROM {$wpdb->prefix}cs_sales WHERE id = %d",
+        $sale_id
+    ));
+    
+    if (!$sale) {
+        wp_send_json_error('Sale not found');
+        return;
+    }
+    
+    // Only allow permanent deletion of already soft-deleted items
+    if (!$sale->deleted_at) {
+        wp_send_json_error('Sale must be deleted before it can be permanently deleted');
+        return;
+    }
+    
+    // Permission check (same logic as delete)
+    $current_user_id = get_current_user_id();
+    $can_delete = false;
+    
+    if ($sale->user_id == $current_user_id) {
+        $can_delete = true;
+    }
+    
+    if (!$can_delete && CS_Child_Manager::can_manage_children()) {
+        $children = CS_Child_Manager::get_parent_children($current_user_id);
+        $child_ids = wp_list_pluck($children, 'id');
+        
+        if (in_array($sale->user_id, $child_ids)) {
+            $can_delete = true;
+        }
+    }
+    
+    if (!$can_delete && current_user_can('manage_options')) {
+        $can_delete = true;
+    }
+    
+    if (!$can_delete) {
+        wp_send_json_error('You do not have permission to permanently delete this sale');
+        return;
+    }
+    
+    // Permanently delete the record
+    $result = $wpdb->delete(
+        $wpdb->prefix . 'cs_sales',
+        array('id' => $sale_id),
+        array('%d')
+    );
+    
+    if ($result !== false) {
+        update_user_meta($current_user_id, 'cs_stats_last_updated', time());
+        
+        wp_send_json_success(array(
+            'message' => 'Sale permanently deleted',
+            'sale_id' => $sale_id,
+            'stats_updated' => true
+        ));
+    } else {
+        wp_send_json_error('Could not permanently delete sale');
+    }
+}
+
     public static function handle_get_stats() {
     check_ajax_referer('cs-ajax-nonce', 'nonce');
     
@@ -568,128 +722,130 @@ public static function handle_klarna_checkout() {
     public static function handle_reset_order_status() {
         wp_send_json_error('Reset functionality is not needed. Orders remain pending until completed.');
     }
-	public static function handle_get_sales() {
-		check_ajax_referer('cs-ajax-nonce', 'nonce');
+public static function handle_get_sales() {
+    check_ajax_referer('cs-ajax-nonce', 'nonce');
 
-		$status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : null;
-		$user_filter = isset($_POST['user_filter']) ? sanitize_text_field($_POST['user_filter']) : null;
-		$current_user_id = get_current_user_id();
+    $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : null;
+    $user_filter = isset($_POST['user_filter']) ? sanitize_text_field($_POST['user_filter']) : null;
+    $show_deleted = isset($_POST['show_deleted']) ? sanitize_text_field($_POST['show_deleted']) : 'no';
+    $current_user_id = get_current_user_id();
 
-		global $wpdb;
+    global $wpdb;
 
-		// Base query
-		$sql = "SELECT s.* FROM {$wpdb->prefix}cs_sales s WHERE 1=1";
-		$params = array();
+    // Base query depending on whether we're showing deleted or active orders
+    if ($show_deleted === 'yes') {
+        // Show only deleted orders
+        $sql = "SELECT s.* FROM {$wpdb->prefix}cs_sales s WHERE s.deleted_at IS NOT NULL";
+    } else {
+        // Show only active (non-deleted) orders
+        $sql = "SELECT s.* FROM {$wpdb->prefix}cs_sales s WHERE s.deleted_at IS NULL";
+    }
+    
+    $params = array();
 
-		// Apply status filter if provided
-		if ($status) {
-			$sql .= " AND s.status = %s";
-			$params[] = $status;
-		}
+    // Apply status filter only for active orders (deleted orders don't need status filtering)
+    if ($status && $show_deleted !== 'yes') {
+        $sql .= " AND s.status = %s";
+        $params[] = $status;
+    }
 
-		// Apply user filter
-		if ($user_filter === 'my') {
-			// Only show current user's orders
-			$sql .= " AND s.user_id = %d";
-			$params[] = $current_user_id;
-		} else if ($user_filter === 'children') {
-			// Show orders from all child users
-			$children = CS_Child_Manager::get_parent_children($current_user_id);
+    // Apply user filter logic
+    if ($user_filter === 'my') {
+        $sql .= " AND s.user_id = %d";
+        $params[] = $current_user_id;
+    } else if ($user_filter === 'children') {
+        $children = CS_Child_Manager::get_parent_children($current_user_id);
+        if (!empty($children)) {
+            $child_ids = array_column($children, 'id');
+            $placeholders = implode(',', array_fill(0, count($child_ids), '%d'));
+            $sql .= " AND s.user_id IN ($placeholders)";
+            $params = array_merge($params, $child_ids);
+        } else {
+            wp_send_json_success(array('sales' => array()));
+            return;
+        }
+    } else {
+        // Default: show user's orders and their children's orders
+        if (CS_Child_Manager::is_child_user()) {
+            $sql .= " AND s.user_id = %d";
+            $params[] = $current_user_id;
+        } else {
+            $children = CS_Child_Manager::get_parent_children($current_user_id);
+            $user_ids = array($current_user_id);
+            if (!empty($children)) {
+                foreach ($children as $child) {
+                    $user_ids[] = $child['id'];
+                }
+            }
+            $placeholders = implode(',', array_fill(0, count($user_ids), '%d'));
+            $sql .= " AND s.user_id IN ($placeholders)";
+            $params = array_merge($params, $user_ids);
+        }
+    }
 
-			if (!empty($children)) {
-				$child_ids = array_column($children, 'id');
-				$placeholders = implode(',', array_fill(0, count($child_ids), '%d'));
+    // Order by date, newest first
+    $sql .= " ORDER BY s.created_at DESC, s.sale_date DESC";
+    
+    if (!empty($params)) {
+        $query = $wpdb->prepare($sql, $params);
+    } else {
+        $query = $sql;
+    }
+    
+    $sales = $wpdb->get_results($query);
 
-				$sql .= " AND s.user_id IN ($placeholders)";
-				$params = array_merge($params, $child_ids);
-			} else {
-				// No children, return empty result
-				wp_send_json_success(array('sales' => array()));
-				return;
-			}
-		} else {
-			// For child users or 'all' filter for parent users
-			if (CS_Child_Manager::is_child_user()) {
-				$sql .= " AND s.user_id = %d";
-				$params[] = $current_user_id;
-			} else {
-				// For admin/parent with 'all' filter, show their orders plus their children's orders
-				$children = CS_Child_Manager::get_parent_children($current_user_id);
-				$user_ids = array($current_user_id);
-
-				if (!empty($children)) {
-					foreach ($children as $child) {
-						$user_ids[] = $child['id'];
-					}
-				}
-
-				$placeholders = implode(',', array_fill(0, count($user_ids), '%d'));
-				$sql .= " AND s.user_id IN ($placeholders)";
-				$params = array_merge($params, $user_ids);
-			}
-		}
-
-		// Add order by
-		$sql .= " ORDER BY s.sale_date DESC";
-
-		// Prepare and execute the query
-		$query = $wpdb->prepare($sql, $params);
-		$sales = $wpdb->get_results($query);
-
-		// Add user information to each sale
-		if (!empty($sales)) {
+    // Add user information and calculate profits for each sale
+    if (!empty($sales)) {
         foreach ($sales as &$sale) {
             $user = get_userdata($sale->user_id);
             $sale->user_name = $user ? $user->display_name : 'Unknown';
             $sale->is_child = $user ? in_array('club_child_user', $user->roles) : false;
             
-            // NEW: Calculate Customer Pays and Profit
-            $customer_pays = 0;
+            // Mark if the sale is deleted
+            $sale->is_deleted = !is_null($sale->deleted_at);
             
-            // Parse products JSON
-            $products_json = $sale->products;
-            if (strpos($products_json, '\"') !== false) {
-                $products_json = stripslashes($products_json);
-            }
-            
-            $products = json_decode($products_json, true);
-            
-            if (is_array($products)) {
-                foreach ($products as $product) {
-                    $product_id = isset($product['id']) ? intval($product['id']) : 0;
-                    $quantity = isset($product['quantity']) ? intval($product['quantity']) : 1;
-                    
-                    $rrp = 0;
-
-                    // Method 1: Try ACF first
-                    if (function_exists('get_field')) {
-                        $rrp = floatval(get_field('rrp', $product_id));
-                    }
-                    
-                    // Method 2: If ACF fails, try direct database access
-                    if ($rrp == 0) {
-                        global $wpdb;
-                        $rrp_value = $wpdb->get_var($wpdb->prepare(
-                            "SELECT meta_value FROM {$wpdb->postmeta}
-                             WHERE post_id = %d AND meta_key = 'rrp_value' 
-                             LIMIT 1",
-                            $product_id
-                        ));
+            // Calculate customer_pays and profit
+            if (isset($sale->customer_pays) && $sale->customer_pays > 0) {
+                $customer_pays = floatval($sale->customer_pays);
+            } else {
+                // Fallback calculation if customer_pays not stored
+                $customer_pays = 0;
+                $products_json = $sale->products;
+                if (strpos($products_json, '\"') !== false) {
+                    $products_json = stripslashes($products_json);
+                }
+                
+                $products = json_decode($products_json, true);
+                if (is_array($products)) {
+                    foreach ($products as $product) {
+                        $product_id = isset($product['id']) ? intval($product['id']) : 0;
+                        $quantity = isset($product['quantity']) ? intval($product['quantity']) : 1;
                         
-                        if ($rrp_value !== null && is_numeric($rrp_value)) {
-                            $rrp = floatval($rrp_value);
+                        if ($product_id > 0) {
+                            $rrp = 0;
+                            if (function_exists('get_field')) {
+                                $rrp = floatval(get_field('rrp', $product_id));
+                            }
+                            if ($rrp == 0) {
+                                $wc_product = wc_get_product($product_id);
+                                if ($wc_product) {
+                                    $rrp = floatval($wc_product->get_regular_price());
+                                }
+                            }
+                            $customer_pays += ($rrp * $quantity);
                         }
                     }
-                    
-                    if ($rrp == 0 && $product_id > 0) {
-                        $wc_product = wc_get_product($product_id);
-                        if ($wc_product) {
-                            $rrp = floatval($wc_product->get_regular_price());
-                        }
-                    }
-                    
-                    // Calculate Customer Pays: RRP × Quantity
-                    $customer_pays += ($rrp * $quantity);
+                }
+                
+                // Update the record with calculated customer_pays
+                if ($customer_pays > 0 && !$sale->is_deleted) {
+                    $wpdb->update(
+                        $wpdb->prefix . 'cs_sales',
+                        array('customer_pays' => $customer_pays),
+                        array('id' => $sale->id),
+                        array('%f'),
+                        array('%d')
+                    );
                 }
             }
             
@@ -698,8 +854,100 @@ public static function handle_klarna_checkout() {
         }
     }
 
-		wp_send_json_success(array(
-			'sales' => $sales
-		));
-	}
+    wp_send_json_success(array('sales' => $sales));
+}
+
+public static function handle_mark_order_delivered() {
+        check_ajax_referer('cs-ajax-nonce', 'nonce');
+        
+        $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+        
+        if (!$order_id) {
+            wp_send_json_error('Invalid order ID');
+            return;
+        }
+        
+        global $wpdb;
+        
+        // First, verify the order exists and get its details
+        $order = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}cs_sales WHERE id = %d",
+            $order_id
+        ));
+        
+        if (!$order) {
+            wp_send_json_error('Order not found');
+            return;
+        }
+        
+        // Check if the current user has permission to mark this order as delivered
+        $current_user_id = get_current_user_id();
+        $can_mark_delivered = false;
+        
+        // User can mark their own orders as delivered
+        if ($order->user_id == $current_user_id) {
+            $can_mark_delivered = true;
+        }
+        
+        // Check if current user is a parent of the order's user
+        $child_parent = CS_Child_Manager::get_child_parent($order->user_id);
+        if ($child_parent && $child_parent['id'] == $current_user_id) {
+            $can_mark_delivered = true;
+        }
+        
+        // Check if user can manage children
+        if (!$can_mark_delivered && CS_Child_Manager::can_manage_children()) {
+            $can_mark_delivered = true;
+        }
+        
+        // Admins can always mark orders as delivered
+        if (!$can_mark_delivered && current_user_can('manage_options')) {
+            $can_mark_delivered = true;
+        }
+        
+        if (!$can_mark_delivered) {
+            wp_send_json_error('You do not have permission to mark this order as delivered');
+            return;
+        }
+        
+        // Check if order is in the correct status to be marked as delivered
+        if ($order->status !== 'ordered_from_supplier') {
+            wp_send_json_error('Order must be "Ordered from Supplier" status to mark as delivered');
+            return;
+        }
+        
+        // Update the order status to completed
+        $result = $wpdb->update(
+            $wpdb->prefix . 'cs_sales',
+            array('status' => 'completed'),
+            array('id' => $order_id),
+            array('%s'),
+            array('%d')
+        );
+        
+        if ($result === false) {
+            wp_send_json_error('Failed to update order status: ' . $wpdb->last_error);
+            return;
+        }
+        
+        // Log the status change
+        error_log("Order ID {$order_id} marked as delivered (completed) by user ID {$current_user_id}");
+        
+        // Update the stats last updated timestamp
+        update_user_meta($current_user_id, 'cs_stats_last_updated', time());
+        
+        // Get the updated order for response
+        $updated_order = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}cs_sales WHERE id = %d",
+            $order_id
+        ), ARRAY_A);
+        
+        wp_send_json_success(array(
+            'message' => 'Order marked as delivered to customer successfully',
+            'order' => $updated_order,
+            'stats_updated' => true,
+            'old_status' => $order->status,
+            'new_status' => 'completed'
+        ));
+    }
 }
