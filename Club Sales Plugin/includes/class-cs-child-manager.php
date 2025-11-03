@@ -712,4 +712,4 @@ public static function send_child_user_email($user_id, $password) {
     
     return $email_sent;
 }
-}
+} 
