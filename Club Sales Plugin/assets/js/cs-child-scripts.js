@@ -1091,4 +1091,4 @@
         .html('.cs-sales-materials-container.loading { opacity: 0.5; pointer-events: none; }')
         .appendTo('head');
 
-})(jQuery);
+})(jQuery); 
