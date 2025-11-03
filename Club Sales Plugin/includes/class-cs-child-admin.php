@@ -304,4 +304,4 @@ public static function render_global_margin_settings_page() {
         CS_Price_Calculator::auto_calculate_product_prices($product->get_id());
     }
 }
-}
+} 
