@@ -4,12 +4,6 @@
         <h2 class="cs-heading"><?php _e('Generated profit:', 'club-sales'); ?></h2>
         <div class="cs-value cs-profit-value"><?php echo number_format($stats['total_profit'], 0); ?> <?php echo esc_html(get_option('cs_settings')['currency'] ?? 'SEK'); ?></div>
         
-        <!-- Live update indicator -->
-        <div class="cs-live-indicator">
-            <span class="cs-live-dot"></span>
-            <span class="cs-live-text">Live Updates</span>
-        </div>
-        
         <!-- Sales chart container -->
         <div class="cs-chart-container">
             <canvas id="sales-chart"></canvas>
@@ -91,12 +85,10 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if (response.success && response.data.needs_update) {
-                    console.log('Stats update needed, refreshing...');
                     updateStatsImmediately();
                 }
             },
             error: function(xhr, status, error) {
-                console.log('Stats check failed:', error);
             }
         });
     }
@@ -104,7 +96,6 @@ jQuery(document).ready(function($) {
     // Immediately update stats and chart
     function updateStatsImmediately() {
         if (isUpdating) {
-            console.log('Update already in progress, skipping...');
             return;
         }
         
@@ -121,7 +112,6 @@ jQuery(document).ready(function($) {
             },
             success: function(response) {
                 if (response.success && response.data) {
-                    console.log('Stats updated successfully:', response.data);
                     
                     // Update profit display with animation
                     animateValueUpdate('.cs-profit-value', response.data.total_profit, csAjax.currency || 'SEK');
@@ -135,12 +125,10 @@ jQuery(document).ready(function($) {
                     
                     showUpdateStatus('Statistics updated!', 'success');
                 } else {
-                    console.error('Failed to update stats:', response);
                     showUpdateStatus('Update failed', 'error');
                 }
             },
             error: function(xhr, status, error) {
-                console.error('AJAX error updating stats:', status, error);
                 showUpdateStatus('Update failed', 'error');
             },
             complete: function() {
