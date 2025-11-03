@@ -1,8 +1,8 @@
 <?php
 class CS_Klarna {
     private static function get_api_credentials() {
-        $merchant_id = 'K7369022-SYz4n';
-        $shared_secret = 'kco_live_api_HyffimDb7ykeeoTsISEYHuKplr2aAalh';
+        $merchant_id = '20d65877-6280-4d5e-8999-5e3e543695d3';
+        $shared_secret = 'klarna_live_api_V3k0KTkzKnpRVFdZZyM_ekEvVFRnSUtEZlJBIUI0SWIsMjBkNjU4NzctNjI4MC00ZDVlLTg5OTktNWUzZTU0MzY5NWQzLDEsdmU0cDMvQkgySjRTTHZpdklkdjE2UUtaQnpYdmtvWmlRMk16T25MM1FETT0';
         $test_mode = false;
         
         return array(
@@ -12,7 +12,7 @@ class CS_Klarna {
         );
     }
     
-    public static function create_order($sale_ids) {
+public static function create_order($sale_ids) {
         global $wpdb;
         
         if (empty($sale_ids)) {
@@ -37,12 +37,12 @@ class CS_Klarna {
             $checkout_url = self::add_products_to_cart_and_checkout($sales);
             
             if ($checkout_url) {
-                // IMPORTANT CHANGE: DO NOT update status to 'processing' 
-                // Keep orders as 'pending' until they are actually completed through WooCommerce
-                error_log("Checkout URL created successfully. Orders remain 'pending' until completion.");
+                // REMOVED: Don't update status here anymore
+                // Keep orders as 'pending' until payment is actually completed
                 
-                // Store the sale IDs in user meta or session for tracking
-                // This helps us identify which sales were sent to checkout
+                error_log("Orders remain 'pending' status until payment completion");
+                
+                // Store the sale IDs in user meta for tracking
                 $current_user_id = get_current_user_id();
                 update_user_meta($current_user_id, 'cs_checkout_sales_' . time(), $sale_ids);
                 
@@ -383,9 +383,10 @@ class CS_Klarna {
     }
 }
 
-// Hook to handle order completion status updates
+// Updated hook handlers
 add_action('woocommerce_order_status_completed', 'cs_update_sales_status_completed');
 add_action('woocommerce_order_status_processing', 'cs_update_sales_status_processing');
+add_action('woocommerce_payment_complete', 'cs_update_sales_status_on_payment'); // NEW
 
 function cs_update_sales_status_completed($order_id) {
     // When WooCommerce order is completed, update our sales records to completed
@@ -406,6 +407,38 @@ function cs_update_sales_status_completed($order_id) {
 }
 
 function cs_update_sales_status_processing($order_id) {
-    // We don't update to processing anymore - orders stay pending until completed
-    error_log("WooCommerce order {$order_id} set to processing - Club Sales orders remain pending");
+    // When WooCommerce order moves to processing, update to ordered_from_supplier
+    $sale_ids = CS_Klarna::get_sale_ids_from_wc_order($order_id);
+    
+    if (!empty($sale_ids)) {
+        global $wpdb;
+        $sale_ids_str = implode(',', array_map('intval', $sale_ids));
+        
+        $wpdb->query(
+            "UPDATE {$wpdb->prefix}cs_sales 
+             SET status = 'ordered_from_supplier' 
+             WHERE id IN ($sale_ids_str)"
+        );
+        
+        error_log("Updated sales records to ordered_from_supplier status for WooCommerce order: " . $order_id);
+    }
+}
+
+// NEW: Handle payment completion specifically
+function cs_update_sales_status_on_payment($order_id) {
+    // This fires when payment is actually completed (before processing status)
+    $sale_ids = CS_Klarna::get_sale_ids_from_wc_order($order_id);
+    
+    if (!empty($sale_ids)) {
+        global $wpdb;
+        $sale_ids_str = implode(',', array_map('intval', $sale_ids));
+        
+        $wpdb->query(
+            "UPDATE {$wpdb->prefix}cs_sales 
+             SET status = 'ordered_from_supplier' 
+             WHERE id IN ($sale_ids_str)"
+        );
+        
+        error_log("Updated sales records to ordered_from_supplier status after payment completion for WooCommerce order: " . $order_id);
+    }
 }
