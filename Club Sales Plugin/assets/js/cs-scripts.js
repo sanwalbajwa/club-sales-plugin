@@ -253,12 +253,18 @@ html += `
      data-id="${product.id}" 
      data-name="${product.name}" 
      data-price="${clubSalesPrice}" 
-     data-sku="${product.sku}">
+     data-sku="${product.sku}"
+     data-vendor-id="${product.vendor_id || 0}"
+     data-vendor-name="${product.vendor_name || 'N/A'}"
+     data-store-name="${product.store_name || 'N/A'}">
     <div class="cs-product-image">
         ${product.image ? `<img src="${product.image}" alt="${product.name}">` : '<span class="dashicons dashicons-format-image"></span>'}
     </div>
     <div class="cs-product-info">
         <div class="cs-product-name">${truncateProductTitle(product.name)}</div>
+        <div class="cs-product-vendor">
+            <span class="dashicons dashicons-store"></span> ${product.store_name || 'N/A'}
+        </div>
         <div class="cs-product-sku">
             SKU: ${product.sku || 'N/A'} 
             ${isSelected ? '<span class="cs-selected-checkmark">✓</span>' : ''}
@@ -269,7 +275,9 @@ html += `
         </div>
     </div>
     <div class="cs-product-info-actions">
-        <a href="${productUrl}" class="cs-view-more-btn" data-product-id="${product.id}" data-product-url="${productUrl}">View More</a>
+        <a href="${productUrl}" class="cs-view-more-btn" data-product-id="${product.id}" data-product-url="${productUrl}">
+            Läs mer
+        </a>
     </div>
 </div>
 `;
@@ -496,7 +504,7 @@ function updateSelectedProductsList() {
                 <div class="cs-product-price-wrapper">
                     <span class="cs-product-price">${lineTotal.toFixed(2)} ${csAjax.currency}</span>
                     <button type="button" class="cs-remove-product" data-id="${product.id}">
-                        <span class="dashicons dashicons-no-alt"></span> Remove
+                        <span class="dashicons dashicons-no-alt"></span> Radera
                     </button>
                 </div>
             </div>
@@ -786,38 +794,55 @@ function initQuantityChangeListener() {
 }
 
 	// Load user's orders
-	function loadOrders() {
-		$('#orders-list').html('<tr><td colspan="8" class="cs-loading">Loading orders...</td></tr>');
-
-		const status = $('#order-status-filter').val();
-		const userFilter = $('#order-user-filter').val() || '';
-
-		$.ajax({
-			url: csAjax.ajaxurl,
-			type: 'POST',
-			data: {
-				action: 'cs_get_sales',
-				nonce: csAjax.nonce,
-				status: status,
-				user_filter: userFilter
-			},
-			success: function(response) {
-				if (response.success && response.data.sales) {
-					displayOrders(response.data.sales);
-				} else {
-					$('#orders-list').html('<tr><td colspan="8">No orders found</td></tr>');
-				}
-			},
-			error: function() {
-				$('#orders-list').html('<tr><td colspan="8">Error loading orders. Please try again.</td></tr>');
-			}
-		});
-	}
+    function loadOrders() {
+        $('#orders-list').html('<tr><td colspan="9" class="cs-loading">Loading orders...</td></tr>');
+    
+        const status = $('#order-status-filter').val();
+        const userFilter = $('#order-user-filter').val() || '';
+        
+        // Determine if we're showing deleted orders
+        let showDeleted = 'no';
+        let actualStatus = status;
+        
+        if (status === 'deleted') {
+            showDeleted = 'yes';
+            actualStatus = ''; // Clear the status filter when showing deleted orders
+        }
+        
+        console.log('Loading orders with filters:', { status: actualStatus, userFilter, showDeleted });
+    
+        $.ajax({
+            url: csAjax.ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'cs_get_sales',
+                nonce: csAjax.nonce,
+                status: actualStatus,
+                user_filter: userFilter,
+                show_deleted: showDeleted
+            },
+            success: function(response) {
+                console.log('Orders response:', response);
+                
+                if (response.success && response.data.sales) {
+                    displayOrders(response.data.sales, showDeleted === 'yes');
+                } else {
+                    const emptyMessage = showDeleted === 'yes' ? 'No deleted orders found' : 'No orders found';
+                    $('#orders-list').html('<tr><td colspan="9">' + emptyMessage + '</td></tr>');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading orders:', status, error);
+                $('#orders-list').html('<tr><td colspan="9">Error loading orders. Please try again.</td></tr>');
+            }
+        });
+    }
 
 	// Display orders in the table
-	function displayOrders(orders) {
+function displayOrders(orders, isShowingDeleted = false) {
     if (!orders || orders.length === 0) {
-        $('#orders-list').html('<tr><td colspan="7">No orders found</td></tr>');
+        const emptyMessage = isShowingDeleted ? 'No deleted orders found' : 'No orders found';
+        $('#orders-list').html('<tr><td colspan="9">' + emptyMessage + '</td></tr>');
         return;
     }
 
@@ -825,40 +850,220 @@ function initQuantityChangeListener() {
     orders.forEach(function(order) {
         const statusClass = 'cs-status-' + order.status;
         const isChild = order.is_child ? ' (Child)' : '';
-
-        // NO RESET BUTTON - Orders are either 'pending' or 'completed'
-        // If user goes to checkout and comes back without completing, it stays 'pending'
+        const isDeleted = order.is_deleted;
+        
+        // Format the columns
+        const customerPays = parseFloat(order.customer_pays || 0);
+        const profit = parseFloat(order.profit || 0);
+        const profitClass = profit >= 0 ? 'cs-profit-positive' : 'cs-profit-negative';
+        
+        // Row styling for deleted orders
+        const rowClass = isDeleted ? 'cs-deleted-row' : '';
+        
+        // Status display
+        let statusDisplay = order.status;
+        if (isDeleted) {
+            statusDisplay = 'Deleted';
+            // Add deleted date if available
+            if (order.deleted_at) {
+                statusDisplay += ' (' + new Date(order.deleted_at).toLocaleDateString() + ')';
+            }
+        } else {
+            switch(order.status) {
+                case 'pending':
+                    statusDisplay = 'Pending';
+                    break;
+                case 'ordered_from_supplier':
+                    statusDisplay = 'Ordered from Supplier';
+                    break;
+                case 'completed':
+                    statusDisplay = 'Completed';
+                    break;
+            }
+        }
+        
+        // Action buttons
+        let actionButtons = '';
+        
+        if (isDeleted) {
+            // Restore button for deleted orders
+            actionButtons = `
+                <button type="button" class="cs-order-action cs-restore-order" data-id="${order.id}">
+                    <span class="dashicons dashicons-undo"></span> Restore
+                </button>
+                <button type="button" class="cs-order-action cs-permanently-delete-order" data-id="${order.id}">
+                    <span class="dashicons dashicons-trash"></span> Delete Permanently
+                </button>
+            `;
+        } else {
+            // Normal action buttons
+            actionButtons = `<button type="button" class="cs-order-action cs-view-order" data-id="${order.id}">View Details</button>`;
+            
+            if (order.status === 'ordered_from_supplier') {
+                actionButtons += `<button type="button" class="cs-order-action cs-mark-delivered" data-id="${order.id}">Mark as Delivered</button>`;
+            }
+            
+            actionButtons += `<button type="button" class="cs-order-action cs-delete-order" data-id="${order.id}">Delete</button>`;
+        }
         
         html += `
-<tr data-order-id="${order.id}">
-    <td>${order.id}</td>
-    <td>${order.sale_date}</td>
-    <td>${order.customer_name}</td>
-    <td>${order.user_name}${isChild}</td>
-    <td>${order.sale_amount} ${csAjax.currency}</td>
-    <td><span class="cs-order-status ${statusClass}">${order.status}</span></td>
-    <td class="cs-order-actions">
-        <button type="button" class="cs-order-action cs-view-order" data-id="${order.id}">View</button>
-        <button type="button" class="cs-order-action cs-delete-order" data-id="${order.id}">Delete</button>
-    </td>
-</tr>
-`;
+        <tr data-order-id="${order.id}" class="${rowClass}">
+            <td>${order.id}</td>
+            <td>${order.sale_date}</td>
+            <td>${order.customer_name}</td>
+            <td>${order.user_name}${isChild}</td>
+            <td>${customerPays.toFixed(2)} ${csAjax.currency}</td>
+            <td>${order.sale_amount} ${csAjax.currency}</td>
+            <td class="${profitClass}">${profit.toFixed(2)} ${csAjax.currency}</td>
+            <td><span class="cs-order-status ${statusClass}">${statusDisplay}</span></td>
+            <td class="cs-order-actions">
+                ${actionButtons}
+            </td>
+        </tr>
+        `;
     });
 
     $('#orders-list').html(html);
 
-    // Add action handlers
+    // Add restore handler
+    $('.cs-restore-order').on('click', function() {
+        const orderId = $(this).data('id');
+        const $row = $(this).closest('tr');
+        
+        if (confirm('Are you sure you want to restore this order?')) {
+            $.ajax({
+                url: csAjax.ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'cs_restore_sale',
+                    nonce: csAjax.nonce,
+                    sale_id: orderId
+                },
+                beforeSend: function() {
+                    $row.find('.cs-restore-order').text('Restoring...').prop('disabled', true);
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert('Order restored successfully');
+                        loadOrders(); // Reload the orders list
+                        
+                        // Update stats
+                        triggerStatsUpdate();
+                    } else {
+                        alert('Error: ' + (response.data || 'Could not restore order'));
+                        $row.find('.cs-restore-order').html('<span class="dashicons dashicons-undo"></span> Restore').prop('disabled', false);
+                    }
+                },
+                error: function() {
+                    alert('Error: Could not restore order. Please try again.');
+                    $row.find('.cs-restore-order').html('<span class="dashicons dashicons-undo"></span> Restore').prop('disabled', false);
+                }
+            });
+        }
+    });
+
+    // Add permanent delete handler
+    $('.cs-permanently-delete-order').on('click', function() {
+        const orderId = $(this).data('id');
+        const $row = $(this).closest('tr');
+        
+        if (confirm('Are you sure you want to permanently delete this order? This action cannot be undone.')) {
+            $.ajax({
+                url: csAjax.ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'cs_permanently_delete_sale',
+                    nonce: csAjax.nonce,
+                    sale_id: orderId
+                },
+                beforeSend: function() {
+                    $row.find('.cs-permanently-delete-order').text('Deleting...').prop('disabled', true);
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert('Order permanently deleted');
+                        $row.fadeOut(300, function() {
+                            $(this).remove();
+                            
+                            // Check if any orders remain
+                            if ($('#orders-list tr').length === 0) {
+                                $('#orders-list').html('<tr><td colspan="9">No deleted orders found</td></tr>');
+                            }
+                        });
+                    } else {
+                        alert('Error: ' + (response.data || 'Could not delete order permanently'));
+                        $row.find('.cs-permanently-delete-order').html('<span class="dashicons dashicons-trash"></span> Delete Permanently').prop('disabled', false);
+                    }
+                },
+                error: function() {
+                    alert('Error: Could not delete order permanently. Please try again.');
+                    $row.find('.cs-permanently-delete-order').html('<span class="dashicons dashicons-trash"></span> Delete Permanently').prop('disabled', false);
+                }
+            });
+        }
+    });
+
+    // Existing handlers for non-deleted orders...
     $('.cs-view-order').on('click', function() {
         const orderId = $(this).data('id');
         showOrderDetails(orderId);
     });
 
-    // Delete order handler with stats update
+    // Mark as delivered handler
+    $('.cs-mark-delivered').on('click', function() {
+        const orderId = $(this).data('id');
+        const $button = $(this);
+        const $row = $(this).closest('tr');
+        
+        if (confirm('Mark this order as delivered to customer?')) {
+            $.ajax({
+                url: csAjax.ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'cs_mark_order_delivered',
+                    nonce: csAjax.nonce,
+                    order_id: orderId
+                },
+                beforeSend: function() {
+                    $button.text('Marking...').prop('disabled', true);
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // Trigger stats update
+                        $(document).trigger('cs_order_updated', { order_id: orderId });
+                        triggerStatsUpdate();
+                        
+                        // Update the row status
+                        $row.find('.cs-order-status')
+                            .removeClass('cs-status-ordered_from_supplier cs-status-ordered-from-supplier')
+                            .addClass('cs-status-completed')
+                            .text('Delivered to Customer');
+                        
+                        // Remove the mark as delivered button and show completed styling
+                        $button.remove();
+                        
+                        alert('Order marked as delivered to customer successfully!');
+                        
+                        // Refresh current sales stats
+                        getCurrentSalesStats();
+                    } else {
+                        alert('Error: ' + (response.data || 'Could not mark order as delivered'));
+                        $button.text('Mark as Delivered').prop('disabled', false);
+                    }
+                },
+                error: function() {
+                    alert('Error: Could not mark order as delivered. Please try again.');
+                    $button.text('Mark as Delivered').prop('disabled', false);
+                }
+            });
+        }
+    });
+
+    // Delete order handler (soft delete)
     $('.cs-delete-order').on('click', function() {
         const orderId = $(this).data('id');
         const $row = $(this).closest('tr');
         
-        // Confirm deletion
         if (confirm('Are you sure you want to delete this order?')) {
             $.ajax({
                 url: csAjax.ajaxurl,
@@ -873,20 +1078,15 @@ function initQuantityChangeListener() {
                 },
                 success: function(response) {
                     if (response.success) {
-                        // Trigger stats update
                         $(document).trigger('cs_sale_deleted', { sale_id: orderId });
                         triggerStatsUpdate();
                         
-                        // Remove the row from the table
                         $row.fadeOut(300, function() {
                             $(this).remove();
-                            
-                            // Refresh current sales stats
                             getCurrentSalesStats();
                             
-                            // If no orders left, show empty message
                             if ($('#orders-list tr').length === 0) {
-                                $('#orders-list').html('<tr><td colspan="7">No orders found</td></tr>');
+                                $('#orders-list').html('<tr><td colspan="9">No orders found</td></tr>');
                             }
                         });
                         
@@ -903,12 +1103,16 @@ function initQuantityChangeListener() {
             });
         }
     });
-
-    // Remove all reset button handlers since we don't have reset buttons anymore
 }
 	
 // Initialize order filters and processing
 function initOrderFilters() {
+    // Filter change handler
+    $('#order-status-filter, #order-user-filter').on('change', function() {
+        console.log('Filter changed, reloading orders');
+        loadOrders();
+    });
+    
     $('#klarna-checkout-selected-btn').on('click', function() {
         // Collect all pending order IDs
         const pendingOrders = [];
@@ -1054,10 +1258,10 @@ function showOrderDetails(orderId) {
                 
                 const orderDetailsHtml = `
                     <div class="cs-order-detail-section">
-                        <h3>Order #${order.id} Details</h3>
+                        <h3>BestÃ¤lla #${order.id} Detaljer</h3>
                         <table class="cs-order-detail-table">
                             <tr>
-                                <th>Order Date:</th>
+                                <th>BestÃ¤llningsdatum:</th>
                                 <td>${order.sale_date}</td>
                             </tr>
                             <tr>
@@ -1065,41 +1269,41 @@ function showOrderDetails(orderId) {
                                 <td><span class="cs-order-status cs-status-${order.status}">${order.status}</span></td>
                             </tr>
                             <tr>
-                                <th>Customer:</th>
+                                <th>Kund:</th>
                                 <td>${order.customer_name}</td>
                             </tr>
 							<tr>
-								<th>Email:</th>
+								<th>E-post:</th>
 								<td>${order.email || 'N/A'}</td>
 							</tr>
                             <tr>
-                                <th>Phone:</th>
+                                <th>Telefon:</th>
                                 <td>${order.phone || 'N/A'}</td>
                             </tr>
                             <tr>
-                                <th>Address:</th>
+                                <th>Adress:</th>
                                 <td>${order.address || 'N/A'}</td>
                             </tr>
                             <tr>
-                                <th>Total Amount:</th>
+                                <th>Totalt belopp:</th>
                                 <td><strong>${order.sale_amount} ${csAjax.currency}</strong></td>
                             </tr>
                             <tr>
-                                <th>Notes:</th>
+                                <th>AnmÃ¤rkningar:</th>
                                 <td>${order.notes || 'No notes'}</td>
                             </tr>
                         </table>
                     </div>
                     
                     <div class="cs-order-detail-section">
-                        <h3>Products</h3>
+                        <h3>Produkter</h3>
                         <div class="cs-order-product-list">
                             ${productsHtml}
                         </div>
                     </div>
                     
                     <div class="cs-modal-actions">
-                        <button class="cs-edit-order-btn" data-order-id="${order.id}">Edit Order</button>
+                        <button class="cs-edit-order-btn" data-order-id="${order.id}">Redigera bestÃ¤llning</button>
                     </div>
                 `;
                 
@@ -1130,43 +1334,51 @@ function populateEditOrderForm(order) {
             <div id="cs-edit-order-modal" class="cs-modal">
                 <div class="cs-modal-content">
                     <span class="cs-edit-modal-close">&times;</span>
-                    <h2>Edit Order</h2>
+                    <h2>Redigera bestÃ¤llning</h2>
                     
                     <form id="cs-edit-order-form" class="cs-form">
         <input type="hidden" id="edit-order-id" name="order_id">
         
         <div class="cs-form-group">
-            <label for="edit-customer-name">Customer Name</label>
+            <label for="edit-customer-name">Kundens namn</label>
             <input type="text" id="edit-customer-name" name="customer_name" required>
         </div>
+
+		<div class="cs-form-group">
+                        <label for="edit-order-status">Order Status</label>
+                        <select id="edit-order-status" name="status" class="cs-status-select">
+                            <option value="pending">Pending</option>
+                            <option value="ordered_from_supplier">Ordered from Supplier</option>
+                            <option value="completed">Delivered to Customer</option>
+                        </select>
+                    </div>
         
         <div class="cs-form-group">
-            <label for="edit-email">Email</label>
+            <label for="edit-email">E-post</label>
             <input type="email" id="edit-email" name="email">
         </div>
         
         <div class="cs-form-group">
-            <label for="edit-phone">Phone</label>
+            <label for="edit-phone">Telefon</label>
             <input type="tel" id="edit-phone" name="phone">
         </div>
         
         <div class="cs-form-group">
-            <label for="edit-address">Address</label>
+            <label for="edit-address">Adress</label>
             <textarea id="edit-address" name="address"></textarea>
         </div>
         
         <div class="cs-form-group">
-            <label for="edit-sale-date">Sale Date</label>
+            <label for="edit-sale-date">FÃ¶rsÃ¤ljningsdatum</label>
             <input type="date" id="edit-sale-date" name="sale_date" required>
         </div>
-        
         <div class="cs-form-group">
-            <label for="edit-notes">Notes</label>
+            <label for="edit-notes">Anteckningar</label>
             <textarea id="edit-notes" name="notes"></textarea>
         </div>
         
         <div class="cs-form-actions">
-            <button type="submit" class="cs-submit-btn">Save Changes</button>
+            <button type="submit" class="cs-submit-btn">Spara Ã¤ndringar</button>
         </div>
     </form>
                 </div>
@@ -1252,6 +1464,8 @@ function populateEditOrderForm(order) {
 	$('#edit-email').val(order.email);
     $('#edit-phone').val(order.phone);
     $('#edit-address').val(order.address);
+	$('#edit-sale-amount').val(order.sale_amount);
+	$('#edit-order-status').val(order.status);
     
     // Ensure date is in correct format
     const formattedDate = order.sale_date ? 
@@ -1427,6 +1641,7 @@ function populateEditOrderForm(order) {
             phone: $('#edit-phone').val(),
             address: $('#edit-address').val(),
             sale_date: $('#edit-sale-date').val(),
+			status: $('#edit-order-status').val(),
             notes: $('#edit-notes').val()
         };
 		console.log('Form data being sent:', formData);
@@ -1850,63 +2065,60 @@ function populateEditOrderForm(order) {
 
 	// Document ready function
 	$(document).ready(function() {
-		// Initialize tabs
-		initTabs();
+    // Initialize tabs
+    initTabs();
 
-		// Initialize product search
-		initProductSearch();
+    // Initialize product search
+    initProductSearch();
 
-		// Initialize sale form
-		initSaleForm();
-		setTimeout(initAddressAutocomplete, 500);
-		// Initialize order filter
-		if (typeof initOrderFilters === 'function') {
-			initOrderFilters();
-		}
+    // Initialize sale form
+    initSaleForm();
+    setTimeout(initAddressAutocomplete, 500);
+    
+    // Initialize order filter - MAKE SURE THIS IS CALLED
+    initOrderFilters();
 
-		// Initialize Klarna checkout
-		if (typeof initKlarnaCheckout === 'function') {
-			initKlarnaCheckout();
-		}
+    // Initialize Klarna checkout
+    if (typeof initKlarnaCheckout === 'function') {
+        initKlarnaCheckout();
+    }
 
-		// Initialize chart controls
-		if (typeof initChartControls === 'function') {
-			initChartControls();
-		}
+    // Initialize chart controls
+    if (typeof initChartControls === 'function') {
+        initChartControls();
+    }
 
-		// Initialize address autocomplete
-		if (typeof initAddressAutocomplete === 'function') {
-			initAddressAutocomplete();
-		}
+    // Initialize address autocomplete
+    if (typeof initAddressAutocomplete === 'function') {
+        initAddressAutocomplete();
+    }
 
-		// Load initial products for active tab
-		if ($('#tab-assign-product').hasClass('active')) {
-			loadProducts();
-		}
-		const savedProduct = localStorage.getItem('cs_selected_product');
+    // Load initial products for active tab
+    if ($('#tab-assign-product').hasClass('active')) {
+        loadProducts();
+    }
+    
+    // Load saved product selection
+    const savedProduct = localStorage.getItem('cs_selected_product');
     if (savedProduct) {
         try {
             const product = JSON.parse(savedProduct);           
-            // Explicitly set window.selectedProducts
             window.selectedProducts = [product];
-            
-            // Update the selected products list
             updateSelectedProductsList();
-            
-            // NEW: Update Sales Material tab for the saved product
             updateSalesMaterialTab(product.id);
         } catch (e) {
             console.error('Error parsing saved product:', e);
         }
     }
 
-    // Add this specific handler for the Add Order tab
+    // Tab switching handler with order loading
     $('.cs-tab-item').on('click', function() {
         const tabId = $(this).data('tab');
         
-        if (tabId === 'add-order') {
-            
-            // Force update of selected products list
+        if (tabId === 'orders') {
+            // Load orders when orders tab is clicked
+            setTimeout(loadOrders, 100);
+        } else if (tabId === 'add-order') {
             const savedProduct = localStorage.getItem('cs_selected_product');
             if (savedProduct) {
                 try {
@@ -1918,7 +2130,6 @@ function populateEditOrderForm(order) {
                 }
             }
         } else if (tabId === 'sales-material') {
-            // When switching to Sales Material tab, check if we have a selected product
             setTimeout(function() {
                 const savedProduct = localStorage.getItem('cs_selected_product');
                 if (savedProduct) {
@@ -1934,42 +2145,189 @@ function populateEditOrderForm(order) {
             }, 300);
         }
     });
-		// Get current sales stats
-		getCurrentSalesStats();
 
-		// Add style for selected products
-		$('<style>')
-			.text(`
-				.cs-product-card.selected { 
-					border: 2px solid #4CAF50; 
-					box-shadow: 0 0 10px rgba(76, 175, 80, 0.3); 
-				}
-				.cs-selected-checkmark {
-					color: #4CAF50;
-					margin-left: 5px;
-					font-weight: bold;
-					font-size: 16px;
-				}
-				.cs-selected-text {
-					color: #4CAF50;
-					font-weight: bold;
-				}
-				.cs-order-actions .cs-delete-order {
-					margin-left: 5px;
-					background-color: #f44336;
-					color: white;
-					border: none;
-					padding: 17px 32px;
-					border-radius: 25px;
-					cursor: pointer;
-				}
-				.cs-order-actions .cs-delete-order:hover {
-					background-color: #d32f2f;
-					border: none;
-					color: white;
-				}
-			`)
-			.appendTo('head');
-	});
+    // Get current sales stats
+    getCurrentSalesStats();
+
+    // Add style for selected products
+    $('<style>')
+        .text(`
+            .cs-product-card.selected { 
+                border: 2px solid #4CAF50; 
+                box-shadow: 0 0 10px rgba(76, 175, 80, 0.3); 
+            }
+            .cs-selected-checkmark {
+                color: #4CAF50;
+                margin-left: 5px;
+                font-weight: bold;
+                font-size: 16px;
+            }
+            .cs-selected-text {
+                color: #4CAF50;
+                font-weight: bold;
+            }
+            .cs-order-actions .cs-delete-order {
+                margin-left: 5px;
+                background-color: #f44336;
+                color: white;
+                border: none;
+                padding: 17px 32px;
+                border-radius: 25px;
+                cursor: pointer;
+            }
+            .cs-order-actions .cs-delete-order:hover {
+                background-color: #d32f2f;
+                border: none;
+                color: white;
+            }
+        `)
+        .appendTo('head');
+		// Mobile Hamburger Menu Implementation
+function initMobileHamburgerMenu() {
+    // Check if hamburger already exists
+    if ($('.cs-mobile-menu-item').length > 0) {
+        return;
+    }
+    
+    // Create hamburger menu item
+    const hamburgerHtml = `
+        <li class="cs-mobile-menu-item">
+            <button class="cs-hamburger-btn" type="button">
+                <i class="fas fa-bars"></i>
+                <span>Menu</span>
+            </button>
+            <div class="cs-mobile-tabs-dropdown">
+                <!-- Tabs will be cloned here -->
+            </div>
+        </li>
+    `;
+    
+    // Add hamburger as first item in tab list
+    $('.cs-tab-list').prepend(hamburgerHtml);
+    
+    // Clone all tabs (except hamburger itself) into dropdown
+    $('.cs-tab-list .cs-tab-item:not(.cs-mobile-menu-item)').each(function() {
+        const $clonedTab = $(this).clone();
+        $('.cs-mobile-tabs-dropdown').append($clonedTab);
+    });
+    
+    // Toggle dropdown on hamburger click
+    $(document).on('click', '.cs-hamburger-btn', function(e) {
+        e.stopPropagation();
+        const $dropdown = $('.cs-mobile-tabs-dropdown');
+        $dropdown.toggleClass('show');
+        
+        // Change icon
+        const $icon = $(this).find('i');
+        if ($dropdown.hasClass('show')) {
+            $icon.removeClass('fa-bars').addClass('fa-times');
+        } else {
+            $icon.removeClass('fa-times').addClass('fa-bars');
+        }
+    });
+    
+    // Handle tab click in dropdown
+    $(document).on('click', '.cs-mobile-tabs-dropdown .cs-tab-item', function(e) {
+        e.preventDefault();
+        const tabId = $(this).data('tab');
+        
+        // Update active state in both dropdown and main tabs
+        $('.cs-tab-item').removeClass('active');
+        $(`.cs-tab-item[data-tab="${tabId}"]`).addClass('active');
+        
+        // Show tab content
+        $('.cs-tab-pane').removeClass('active');
+        $(`#tab-${tabId}`).addClass('active');
+        
+        // Close dropdown
+        $('.cs-mobile-tabs-dropdown').removeClass('show');
+        $('.cs-hamburger-btn i').removeClass('fa-times').addClass('fa-bars');
+        
+        // Load data for specific tabs
+        if (tabId === 'assign-product') {
+            loadProducts();
+        } else if (tabId === 'orders') {
+            loadOrders();
+        } else if (tabId === 'stats') {
+            loadStats();
+        } else if (tabId === 'assigned-products') {
+            // Child products tab
+        } else if (tabId === 'manage-children') {
+            // Manage children tab
+        } else if (tabId === 'sales-material') {
+            // Sales material tab
+            setTimeout(function() {
+                const savedProduct = localStorage.getItem('cs_selected_product');
+                if (savedProduct) {
+                    try {
+                        const product = JSON.parse(savedProduct);
+                        if (product && product.id) {
+                            if (typeof updateSalesMaterialTab === 'function') {
+                                updateSalesMaterialTab(product.id);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error parsing saved product:', e);
+                    }
+                }
+            }, 300);
+        }
+    });
+    
+    // Close dropdown when clicking outside
+    $(document).on('click', function(e) {
+        if (!$(e.target).closest('.cs-mobile-menu-item').length) {
+            $('.cs-mobile-tabs-dropdown').removeClass('show');
+            $('.cs-hamburger-btn i').removeClass('fa-times').addClass('fa-bars');
+        }
+    });
+}
+
+// Initialize mobile hamburger menu
+initMobileHamburgerMenu();
+});
+    jQuery(document).ready(function($) {
+    var $emailVerification = $('.wcfm_email_verified');
+    var $confirmPassword = $('#confirm_pwd'); // Confirm Password input
+    
+    if ($emailVerification.length && $confirmPassword.length) {
+        // Move email verification field right after Confirm Password input
+        $emailVerification.insertAfter($confirmPassword);
+    }
+});
+
+// Add this JavaScript to your Elementor page or in a Custom Code widget
+// This is for vendor Login Page, to show the error.
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to get URL parameter
+    function getUrlParameter(name) {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+        var results = regex.exec(location.search);
+        return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    }
+    
+    // Check if there's a login error in the URL
+    var loginError = getUrlParameter('login_error');
+    
+    if (loginError) {
+        // Find the username input field
+        var usernameInput = document.getElementById('user-1149d0d');
+        
+        if (usernameInput) {
+            // Create error message element
+            var errorDiv = document.createElement('div');
+            errorDiv.className = 'cs-auth-message cs-auth-error';
+            errorDiv.style.cssText = 'padding: 10px 15px; margin: 0 0 15px 0; border-radius: 4px; background-color: #fff2f0; border-left: 4px solid #f44336; color: #721c24;';
+            errorDiv.textContent = loginError;
+            
+            // Insert error message before the username field's parent div
+            var usernameFieldGroup = usernameInput.closest('.elementor-field-group');
+            if (usernameFieldGroup) {
+                usernameFieldGroup.parentNode.insertBefore(errorDiv, usernameFieldGroup);
+            }
+        }
+    }
+});
 
 })(jQuery);
