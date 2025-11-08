@@ -94,206 +94,150 @@ function cs_login_registration_form() {
         )
     );
     
-    // Add styles matching the reference design
+    // Add styles matching the Figma design exactly
     echo '<style>
-    /* Background and container */
+    /* Reset and base styles */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    /* Background */
     body {
-        background: linear-gradient(135deg, #f9fafb 0%, #ffffff 50%, #f3f4f6 100%) !important;
+        background: linear-gradient(135deg, #f0f9f4 0%, #e6f7ed 100%) !important;
         min-height: 100vh !important;
-        position: relative !important;
-        overflow-x: hidden !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
     }
     
-    /* Background decorative elements */
-    body::before {
-        content: "" !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        background-image: radial-gradient(circle, #00a73d 1px, transparent 1px) !important;
-        background-size: 30px 30px !important;
-        opacity: 0.03 !important;
-        z-index: 0 !important;
-        pointer-events: none !important;
-    }
-    
-    /* Floating circles */
-    .cs-auth-container::before {
-        content: "" !important;
-        position: fixed !important;
-        top: 5rem !important;
-        left: 2.5rem !important;
-        width: 8rem !important;
-        height: 8rem !important;
-        background: linear-gradient(135deg, #00a73d, #00c94a) !important;
-        opacity: 0.2 !important;
-        filter: blur(2rem) !important;
-        border-radius: 50% !important;
-        z-index: 0 !important;
-        animation: float 6s ease-in-out infinite !important;
-    }
-    
-    .cs-auth-container::after {
-        content: "" !important;
-        position: fixed !important;
-        top: 10rem !important;
-        right: 5rem !important;
-        width: 10rem !important;
-        height: 10rem !important;
-        background: linear-gradient(135deg, #00c94a, #00a73d) !important;
-        opacity: 0.15 !important;
-        filter: blur(3rem) !important;
-        border-radius: 50% !important;
-        z-index: 0 !important;
-        animation: float-delayed 7s ease-in-out infinite !important;
-    }
-    
-    @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-20px); }
-    }
-    
-    @keyframes float-delayed {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-30px); }
-    }
-    
-    /* Header */
+    /* Header section */
     .cs-auth-header {
-        padding-top: 30px;
         text-align: center !important;
-        margin-bottom: 2rem !important;
-        position: relative !important;
-        z-index: 0 !important;
+        padding: 40px 20px 30px !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
     }
     
     .cs-logo-icon {
-        width: 64px !important;
-        height: 64px !important;
-        margin: 0 auto 0.75rem !important;
-        background: linear-gradient(135deg, #00a73d 0%, #00c94a 100%) !important;
-        border-radius: 1rem !important;
-        display: inline-flex !important;
+        width: 60px !important;
+        height: 60px !important;
+        margin: 0 auto 16px !important;
+        background: #00b853 !important;
+        border-radius: 12px !important;
+        display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0 10px 25px rgba(0, 167, 61, 0.3) !important;
+        box-shadow: 0 4px 12px rgba(0, 184, 83, 0.25) !important;
     }
     
-    .cs-logo-icon .dashicons {
-        font-size: 32px !important;
-        color: white !important;
+    .cs-logo-svg {
         width: 32px !important;
         height: 32px !important;
+		fill: transparent !important;
     }
     
     .cs-main-title {
-        color: #00a73d !important;
-        font-size: 18px !important;
-        font-weight: 400 !important;
-        margin: 0 0 0.5rem 0 !important;
+        color: #00b853 !important;
+        font-size: 22px !important;
+        font-weight: 500 !important;
+        margin: 0 0 8px 0 !important;
+        letter-spacing: -0.02em !important;
     }
     
     .cs-main-subtitle {
         color: #6b7280 !important;
         font-size: 15px !important;
+        font-weight: 400 !important;
         margin: 0 !important;
     }
     
     /* Container */
     .cs-auth-container {
         display: grid !important;
-        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)) !important;
-        gap: 1.5rem !important;
-        max-width: 1200px !important;
-        margin: 40px auto !important;
-        padding: 0 1rem !important;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif !important;
-        position: relative !important;
-        z-index: 0 !important;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)) !important;
+        gap: 24px !important;
+        max-width: 1100px !important;
+        margin: 0 auto !important;
+        padding: 0 20px 40px !important;
     }
     
     /* Form boxes */
     .cs-auth-box {
-        background: rgba(255, 255, 255, 0.7) !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
-        padding: 2rem !important;
-        border-radius: 1.5rem !important;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        transition: all 0.3s ease !important;
-        position: relative !important;
-        z-index: 10 !important;
+        background: #ffffff !important;
+        padding: 32px !important;
+        border-radius: 16px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+        border: 1px solid rgba(0, 0, 0, 0.06) !important;
     }
     
-    .cs-auth-box:hover {
-        box-shadow: 0 20px 60px rgba(0, 167, 61, 0.15) !important;
-    }
-//     .cs-auth-box-1 {
-// 		padding: 0rem 2rem 2rem 2rem;
-// 	}
     /* Form header */
     .cs-form-header {
         display: flex !important;
         align-items: center !important;
-        gap: 0.75rem !important;
-        margin-bottom: 1.5rem !important;
+        gap: 12px !important;
+        margin-bottom: 24px !important;
     }
     
     .cs-form-icon {
         width: 40px !important;
         height: 40px !important;
-        background: linear-gradient(135deg, #00a73d, #00c94a) !important;
-        border-radius: 0.75rem !important;
+        background: #00b853 !important;
+        border-radius: 50% !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0 4px 12px rgba(0, 167, 61, 0.3) !important;
+        flex-shrink: 0 !important;
     }
     
-    .cs-form-icon .dashicons {
-        font-size: 20px !important;
-        color: white !important;
+    .cs-form-icon-svg {
         width: 20px !important;
         height: 20px !important;
+		fill: transparent !important;
     }
     
     .cs-auth-title {
         font-size: 18px !important;
         margin: 0 !important;
-        color: #00a73d !important;
+        color: #00b853 !important;
         font-weight: 500 !important;
+        letter-spacing: -0.01em !important;
     }
     
     /* Form elements */
     .cs-auth-form .form-row {
-        margin-bottom: 1.25rem !important;
+        margin-bottom: 16px !important;
     }
     
     .cs-auth-form .input-label {
         display: block !important;
-        margin-bottom: 0.5rem !important;
+        margin-bottom: 8px !important;
         font-weight: 500 !important;
         color: #374151 !important;
-        font-size: 14px !important;
+        font-size: 17px !important;
     }
     
     .cs-input-wrapper {
         position: relative !important;
+        display: flex !important;
+        align-items: center !important;
     }
     
     .cs-input-icon {
         position: absolute !important;
-        left: 12px !important;
+        left: 14px !important;
         top: 50% !important;
         transform: translateY(-50%) !important;
-        color: #9ca3af !important;
-        font-size: 20px !important;
         width: 20px !important;
         height: 20px !important;
         pointer-events: none !important;
+        z-index: 1 !important;
+		fill: transparent !important;
+    }
+    
+    .cs-input-icon path {
+        fill: transparent !important;
     }
     
     .cs-auth-form input[type="text"],
@@ -301,98 +245,103 @@ function cs_login_registration_form() {
     .cs-auth-form input[type="password"],
     .cs-auth-form select {
         width: 100% !important;
-        padding: 12px 16px 12px 44px !important;
-        border: 2px solid #e5e7eb !important;
-        border-radius: 0.75rem !important;
+        padding: 12px 14px 12px 44px !important;
+        border: 1.5px solid #e5e7eb !important;
+        border-radius: 8px !important;
         font-size: 14px !important;
         color: #374151 !important;
-        background: white !important;
-        transition: all 0.3s ease !important;
+        background: #ffffff !important;
+        transition: all 0.2s ease !important;
+        font-family: inherit !important;
+    }
+    
+    .cs-auth-form input::placeholder {
+        color: #9ca3af !important;
     }
     
     .cs-auth-form input:focus,
     .cs-auth-form select:focus {
         outline: none !important;
-        border-color: #00a73d !important;
-        box-shadow: 0 0 0 4px rgba(0, 167, 61, 0.1) !important;
+        border-color: #00b853 !important;
+        box-shadow: 0 0 0 3px rgba(0, 184, 83, 0.1) !important;
     }
     
-    .cs-auth-form input:focus ~ .cs-input-icon {
-        color: #00a73d !important;
+    .cs-auth-form input:focus + .cs-input-icon path,
+    .cs-auth-form select:focus + .cs-input-icon path {
+        fill: transparent !important;
     }
     
     /* Checkbox */
     .cs-checkbox-wrapper {
         display: flex !important;
         align-items: center !important;
-        gap: 0.5rem !important;
-        margin-bottom: 1.5rem !important;
+        gap: 8px !important;
+        margin-bottom: 20px !important;
     }
     
     .cs-checkbox-wrapper input[type="checkbox"] {
         width: 18px !important;
         height: 18px !important;
         cursor: pointer !important;
-        accent-color: #00a73d !important;
+        accent-color: #00b853 !important;
         margin: 0 !important;
-    }
-    
-    .cs-checkbox-wrapper label {
-        font-size: 14px !important;
-        color: #374151 !important;
-        margin: 0 !important;
-        cursor: pointer !important;
+        padding: 0 !important;
+        border-radius: 4px !important;
     }
     
     /* Buttons */
     .cs-auth-button {
         width: 100% !important;
-        background: linear-gradient(90deg, #00a73d 0%, #00c94a 100%) !important;
+        background: #00b853 !important;
         color: white !important;
         border: none !important;
-        padding: 1rem 1.5rem !important;
+        padding: 20px 24px !important;
         border-radius: 9999px !important;
         cursor: pointer !important;
         font-size: 15px !important;
-        font-weight: 600 !important;
+        font-weight: 500 !important;
         transition: all 0.2s ease !important;
-        box-shadow: 0 4px 12px rgba(0, 167, 61, 0.3) !important;
-        margin-top: 0.5rem !important;
+        box-shadow: 0 2px 8px rgba(0, 184, 83, 0.25) !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        gap: 0.5rem !important;
+        gap: 8px !important;
+        font-family: inherit !important;
     }
     
     .cs-auth-button:hover {
-        transform: scale(1.02) !important;
-        box-shadow: 0 6px 16px rgba(0, 167, 61, 0.4) !important;
-        background: linear-gradient(90deg, #008f36 0%, #00b343 100%) !important;
+        background: #00a84c !important;
+        box-shadow: 0 4px 12px rgba(0, 184, 83, 0.35) !important;
+        transform: translateY(-1px) !important;
     }
     
-    .cs-auth-button .dashicons {
-        font-size: 20px !important;
-        width: 20px !important;
-        height: 20px !important;
+    .cs-auth-button:active {
+        transform: translateY(0) !important;
+    }
+    
+    .cs-button-icon {
+        width: 18px !important;
+        height: 18px !important;
     }
     
     /* Messages */
     .cs-auth-message {
         padding: 12px 16px !important;
-        margin: 0 0 1.25rem 0 !important;
-        border-radius: 0.75rem !important;
+        margin: 0 0 20px 0 !important;
+        border-radius: 8px !important;
         font-size: 14px !important;
+        line-height: 1.5 !important;
     }
     
     .cs-auth-error {
         background-color: #fef2f2 !important;
-        border-left: 4px solid #ef4444 !important;
+        border-left: 3px solid #ef4444 !important;
         color: #dc2626 !important;
     }
     
     .cs-auth-success {
         background-color: #f0fdf4 !important;
-        border-left: 4px solid #10b981 !important;
+        border-left: 3px solid #10b981 !important;
         color: #059669 !important;
     }
     
@@ -402,7 +351,7 @@ function cs_login_registration_form() {
         text-decoration: none !important;
         font-size: 14px !important;
         font-weight: 500 !important;
-        transition: color 0.3s ease !important;
+        transition: color 0.2s ease !important;
     }
     
     .cs-auth-box a:hover {
@@ -411,38 +360,70 @@ function cs_login_registration_form() {
     }
     
     /* Section titles */
-    .cs-section-title {
-        font-size: 16px !important;
-        margin: 1.5rem 0 1rem !important;
-        padding-bottom: 0.5rem !important;
+    .cs-section-header {
+        display: flex !important;
+        align-items: center !important;
+		justify-content: flex-start;
+        gap: 8px !important;
+        margin: 24px 0 16px !important;
+        padding-bottom: 8px !important;
         border-bottom: 1px solid #e5e7eb !important;
-        color: #00a73d !important;
-        font-weight: 600 !important;
     }
     
+    .cs-section-icon {
+        width: 18px !important;
+        height: 18px !important;
+        flex-shrink: 0 !important;
+    }
+    
+    .cs-section-icon path {
+        fill: #00b853 !important;
+    }
+    
+    .cs-section-title {
+        font-size: 15px !important;
+        margin: 0 !important;
+        color: #00b853 !important;
+        font-weight: 500 !important;
+    }
+    
+	.cs-section-header h3.cs-section-title
+	 {
+		color: #00b853 !important;
+	}
+	
     /* Two column layout for name fields */
     .cs-form-row-50 {
         display: grid !important;
         grid-template-columns: 1fr 1fr !important;
-        gap: 1rem !important;
-        margin-bottom: 1.25rem !important;
+        gap: 12px !important;
+        margin-bottom: 16px !important;
     }
-    
+    .elementor-261 .elementor-element.elementor-element-e0c7930 label,
+form.cs-auth-form label,
+.cs-checkbox-wrapper label {
+    font-size: 14px !important;
+    color: #6b7280 !important;
+    margin: 0 !important;
+    cursor: pointer !important;
+    font-weight: 400 !important;
+}
+
     /* Responsive */
     @media (max-width: 1024px) {
         .cs-auth-container {
             grid-template-columns: 1fr !important;
-            max-width: 550px !important;
+            max-width: 500px !important;
         }
     }
     
-    @media (max-width: 768px) {
+    @media (max-width: 640px) {
         .cs-auth-container {
-            margin: 1.5rem 1rem !important;
+            padding: 0 16px 40px !important;
         }
         
         .cs-auth-box {
-            padding: 1.75rem 1.5rem !important;
+            padding: 24px 20px !important;
         }
         
         .cs-form-row-50 {
@@ -450,7 +431,7 @@ function cs_login_registration_form() {
         }
         
         .cs-main-title {
-            font-size: 22px !important;
+            font-size: 20px !important;
         }
         
         .cs-main-subtitle {
@@ -461,7 +442,13 @@ function cs_login_registration_form() {
     
     // Header with logo
     echo '<div class="cs-auth-header">';
-    echo '<div class="cs-logo-icon"><span class="dashicons dashicons-groups"></span></div>';
+    echo '<div class="cs-logo-icon">';
+    echo '<svg class="cs-logo-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<path d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '<path d="M8.5 11C10.7091 11 12.5 9.20914 12.5 7C12.5 4.79086 10.7091 3 8.5 3C6.29086 3 4.5 4.79086 4.5 7C4.5 9.20914 6.29086 11 8.5 11Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '<path d="M17 11L19 13L23 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '</svg>';
+    echo '</div>';
     echo '<h1 class="cs-main-title">Välkommen</h1>';
     echo '<p class="cs-main-subtitle">Logga in eller skapa ett nytt konto</p>';
     echo '</div>';
@@ -470,11 +457,14 @@ function cs_login_registration_form() {
     echo '<div class="cs-auth-container">';
     
     // Login form
-    echo '<div class="cs-auth-box-1">';
-	echo '<div class="cs-auth-box cs-login-box">';
+    echo '<div class="cs-auth-box cs-login-box">';
     echo '<div class="cs-form-header">';
-    echo '<div class="cs-form-icon"><span class="dashicons dashicons-lock"></span></div>';
-    echo '<h2 class="cs-auth-title">' . __('Logga In', 'club-sales') . '</h2>';
+    echo '<div class="cs-form-icon">';
+    echo '<svg class="cs-form-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<path d="M19 11H5M12 4L5 11L12 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '</svg>';
+    echo '</div>';
+    echo '<h2 class="cs-auth-title">Logga In</h2>';
     echo '</div>';
     
     if (!empty($login_error)) {
@@ -483,42 +473,55 @@ function cs_login_registration_form() {
     
     echo '<form class="cs-auth-form" action="' . esc_url(site_url('wp-login.php', 'login_post')) . '" method="post">';
     echo '<div class="form-row">';
-    echo '<div class="input-label">' . __('Användarnamn eller mailadress', 'club-sales') . '</div>';
+    echo '<div class="input-label">Användarnamn eller mailadress</div>';
     echo '<div class="cs-input-wrapper">';
-    echo '<span class="dashicons dashicons-email cs-input-icon"></span>';
+    echo '<svg class="cs-input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '<path d="M22 6L12 13L2 6" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '</svg>';
     echo '<input type="text" id="cs-login-username" name="log" required>';
     echo '</div>';
     echo '</div>';
     
     echo '<div class="form-row">';
-    echo '<div class="input-label">' . __('Lösenord', 'club-sales') . '</div>';
+    echo '<div class="input-label">Lösenord</div>';
     echo '<div class="cs-input-wrapper">';
-    echo '<span class="dashicons dashicons-lock cs-input-icon"></span>';
+    echo '<svg class="cs-input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '<path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '</svg>';
     echo '<input type="password" id="cs-login-password" name="pwd" required>';
     echo '</div>';
     echo '</div>';
     
     echo '<div class="cs-checkbox-wrapper">';
-    echo '<input type="checkbox" name="remember" id="remember-me">';
-    echo '<label style="color:#374151 !important" for="remember-me">' . __('Kom ihåg mig', 'club-sales') . '</label>';
+    echo '<input type="checkbox" name="rememberme" id="remember-me">';
+    echo '<label for="remember-me">Kom ihåg mig</label>';
     echo '</div>';
     
     echo '<input type="hidden" name="redirect_to" value="' . esc_url($_SERVER['REQUEST_URI']) . '">';
     echo '<button type="submit" class="cs-auth-button">';
-    echo '<span>' . __('Logga In', 'club-sales') . '</span>';
-    echo '<span class="dashicons dashicons-arrow-right-alt2"></span>';
+    echo '<span>Logga In</span>';
+    echo '<svg class="cs-button-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '</svg>';
     echo '</button>';
     echo '</form>';
     
-    echo '<p style="text-align: center; margin-top: 1rem;"><a href="' . esc_url(site_url('wp-login.php?action=lostpassword')) . '">' . __('Glömt ditt lösenord?', 'club-sales') . '</a></p>';
+    echo '<p style="text-align: center; margin-top: 16px;"><a href="' . esc_url(site_url('wp-login.php?action=lostpassword')) . '">Glömt lösenord?</a></p>';
     echo '</div>';
-	echo '</div>';
     
     // Registration form
     echo '<div class="cs-auth-box cs-register-box">';
     echo '<div class="cs-form-header">';
-    echo '<div class="cs-form-icon"><span class="dashicons dashicons-groups"></span></div>';
-    echo '<h2 class="cs-auth-title">' . __('Registrera dig', 'club-sales') . '</h2>';
+    echo '<div class="cs-form-icon">';
+    echo '<svg class="cs-form-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<path d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '<path d="M8.5 11C10.7091 11 12.5 9.20914 12.5 7C12.5 4.79086 10.7091 3 8.5 3C6.29086 3 4.5 4.79086 4.5 7C4.5 9.20914 6.29086 11 8.5 11Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '<path d="M20 8V14M17 11H23" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '</svg>';
+    echo '</div>';
+    echo '<h2 class="cs-auth-title">Registrera dig</h2>';
     echo '</div>';
     
     if (!empty($register_error)) {
@@ -534,85 +537,113 @@ function cs_login_registration_form() {
     echo wp_nonce_field('cs_register_nonce', 'cs_register_nonce', true, false);
     
     // Personal Section
-    echo '<h3 class="cs-section-title">' . __('Personuppgifter till ansvarig', 'club-sales') . '</h3>';
+    echo '<div class="cs-section-header">';
+    echo '<svg class="cs-section-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" fill="#00b853"/>';
+    echo '<circle cx="12" cy="7" r="4" fill="#00b853"/>';
+    echo '</svg>';
+    echo '<h3 class="cs-section-title">Personuppgifter till ansvarig</h3>';
+    echo '</div>';
     
     // First name and Last name
     echo '<div class="cs-form-row-50">';
     echo '<div class="form-row">';
-    echo '<div class="input-label">' . __('Förnamn', 'club-sales') . '</div>';
+    echo '<div class="input-label">Förnamn</div>';
     echo '<input type="text" id="cs-register-firstname" name="firstname" required>';
     echo '</div>';
     
     echo '<div class="form-row">';
-    echo '<div class="input-label">' . __('Efternamn', 'club-sales') . '</div>';
+    echo '<div class="input-label">Efternamn</div>';
     echo '<input type="text" id="cs-register-lastname" name="lastname" required>';
     echo '</div>';
     echo '</div>';
     
     // Social Security Number
     echo '<div class="form-row">';
-    echo '<div class="input-label">' . __('Personnummer', 'club-sales') . '</div>';
-	echo '<div class="cs-input-wrapper">';
-	echo '<span class="dashicons dashicons-lock cs-input-icon"></span>';
+    echo '<div class="input-label">Personnummer</div>';
+    echo '<div class="cs-input-wrapper">';
+    echo '<svg class="cs-input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '<path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '</svg>';
     echo '<input type="text" id="cs-register-ssn" name="ssn" class="ssn-input" placeholder="YYYYMMDD-XXXX" required pattern="[0-9]{8}-[0-9]{4}">';
-	echo '</div>';
+    echo '</div>';
     echo '</div>';
     
     // Mobile number
     echo '<div class="form-row">';
-    echo '<div class="input-label">' . __('Mobilnummer', 'club-sales') . '</div>';
+    echo '<div class="input-label">Mobilnummer</div>';
     echo '<div class="cs-input-wrapper">';
-    echo '<span class="dashicons dashicons-phone cs-input-icon"></span>';
+    echo '<svg class="cs-input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<path d="M22 16.92V19.92C22.0011 20.1985 21.9441 20.4742 21.8325 20.7293C21.7209 20.9845 21.5573 21.2136 21.3521 21.4019C21.1468 21.5901 20.9046 21.7335 20.6407 21.8227C20.3769 21.9119 20.0974 21.9451 19.82 21.92C16.7428 21.5856 13.787 20.5341 11.19 18.85C8.77382 17.3147 6.72533 15.2662 5.18999 12.85C3.49997 10.2412 2.44824 7.27099 2.11999 4.17997C2.095 3.90344 2.12787 3.62474 2.21649 3.3616C2.30512 3.09846 2.44756 2.85666 2.63476 2.6516C2.82196 2.44653 3.0498 2.28268 3.30379 2.17052C3.55777 2.05836 3.83233 2.00026 4.10999 1.99997H7.10999C7.5953 1.9952 8.06579 2.16705 8.43376 2.48351C8.80173 2.79996 9.04207 3.23942 9.10999 3.71997C9.23662 4.68004 9.47144 5.6227 9.80999 6.52997C9.94454 6.8879 9.97366 7.27689 9.8939 7.65086C9.81415 8.02482 9.62886 8.36809 9.35999 8.63998L8.08999 9.90997C9.51355 12.4135 11.5864 14.4864 14.09 15.91L15.36 14.64C15.6319 14.3711 15.9751 14.1858 16.3491 14.1061C16.7231 14.0263 17.1121 14.0555 17.47 14.19C18.3773 14.5286 19.3199 14.7634 20.28 14.89C20.7658 14.9585 21.2094 15.2032 21.5265 15.5775C21.8437 15.9518 22.0122 16.4296 22 16.92Z" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '</svg>';
     echo '<input type="text" id="cs-register-phone" name="phone" required>';
     echo '</div>';
     echo '</div>';
     
     // Email
     echo '<div class="form-row">';
-    echo '<div class="input-label">' . __('Email', 'club-sales') . '</div>';
+    echo '<div class="input-label">Email</div>';
     echo '<div class="cs-input-wrapper">';
-    echo '<span class="dashicons dashicons-email cs-input-icon"></span>';
+    echo '<svg class="cs-input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<path d="M4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6C2 4.9 2.9 4 4 4Z" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '<path d="M22 6L12 13L2 6" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '</svg>';
     echo '<input type="email" id="cs-register-email" name="email" required>';
     echo '</div>';
     echo '</div>';
     
     // Password fields
     echo '<div class="form-row">';
-    echo '<div class="input-label">' . __('Lösenord', 'club-sales') . '</div>';
+    echo '<div class="input-label">Lösenord</div>';
     echo '<div class="cs-input-wrapper">';
-    echo '<span class="dashicons dashicons-lock cs-input-icon"></span>';
+    echo '<svg class="cs-input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '<path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '</svg>';
     echo '<input type="password" id="cs-register-password" name="password" required>';
     echo '</div>';
     echo '</div>';
     
     echo '<div class="form-row">';
-    echo '<div class="input-label">' . __('Bekräfta Lösenord', 'club-sales') . '</div>';
+    echo '<div class="input-label">Bekräfta Lösenord</div>';
     echo '<div class="cs-input-wrapper">';
-    echo '<span class="dashicons dashicons-lock cs-input-icon"></span>';
+    echo '<svg class="cs-input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '<path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '</svg>';
     echo '<input type="password" id="cs-register-confirm-password" name="confirm_password" required>';
     echo '</div>';
     echo '</div>';
     
     // Group Section
-    echo '<h3 class="cs-section-title">' . __('Gruppuppgifter', 'club-sales') . '</h3>';
+    echo '<div class="cs-section-header">';
+    echo '<svg class="cs-section-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" fill="#00b853"/>';
+    echo '<circle cx="9" cy="7" r="4" fill="#00b853"/>';
+    echo '<path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" fill="#00b853"/>';
+    echo '<path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" fill="#00b853"/>';
+    echo '</svg>';
+    echo '<h3 class="cs-section-title">Gruppuppgifter</h3>';
+    echo '</div>';
     
     // School/Association
     echo '<div class="form-row">';
-    echo '<div class="input-label">' . __('Förening, lag eller klass', 'club-sales') . '</div>';
+    echo '<div class="input-label">Förening, lag eller klass</div>';
     echo '<input type="text" id="cs-register-school" name="school" required>';
     echo '</div>';
     
     // Team/Class
-    echo '<div class="form-row">';
-    echo '<div class="input-label">' . __('Lag eller klass', 'club-sales') . '</div>';
-    echo '<input type="text" id="cs-register-team" name="team" required>';
-    echo '</div>';
+//     echo '<div class="form-row">';
+//     echo '<div class="input-label">Lag eller klass</div>';
+//     echo '<input type="text" id="cs-register-team" name="team" required>';
+//     echo '</div>';
     
     // Activity Type Dropdown
     echo '<div class="form-row">';
-    echo '<div class="input-label">' . __('Aktivitetstyp', 'club-sales') . '</div>';
+    echo '<div class="input-label">Aktivitetstyp</div>';
     echo '<select id="cs-register-activity-type" name="activity_type" required>';
-    echo '<option value="">' . __('Välj aktivitetstyp...', 'club-sales') . '</option>';
+    echo '<option value="">Välj aktivitetstyp...</option>';
     
     echo '<optgroup label="Sports">';
     foreach ($activity_categories['sports'] as $activity) {
@@ -633,8 +664,10 @@ function cs_login_registration_form() {
     echo '<input type="hidden" name="redirect_to" value="' . esc_url($_SERVER['REQUEST_URI']) . '">';
     
     echo '<button type="submit" class="cs-auth-button">';
-    echo '<span>' . __('Registrera dig', 'club-sales') . '</span>';
-    echo '<span class="dashicons dashicons-arrow-right-alt2"></span>';
+    echo '<span>Registrera dig</span>';
+    echo '<svg class="cs-button-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">';
+    echo '<path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+    echo '</svg>';
     echo '</button>';
     echo '</form>';
     echo '</div>';
@@ -685,7 +718,7 @@ function cs_login_registration_form() {
                     confirmPasswordField.style.borderColor = "#ef4444";
                     alert("Lösenorden matchar inte");
                 } else if (passwordField.value === confirmPasswordField.value && confirmPasswordField.value) {
-                    confirmPasswordField.style.borderColor = "#00a73d";
+                    confirmPasswordField.style.borderColor = "#00b853";
                 }
             });
         }
@@ -880,4 +913,3 @@ function cs_redirect_after_logout() {
     exit;
 }
 add_action('wp_logout', 'cs_redirect_after_logout');
-
