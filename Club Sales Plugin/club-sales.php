@@ -15,7 +15,7 @@ Text Domain: club-sales
 if (!defined('ABSPATH')) {
     exit;
 }
-
+ 
 // Define plugin constants
 define('CS_VERSION', '2.0.0');
 define('CS_PLUGIN_DIR', plugin_dir_path(__FILE__));
