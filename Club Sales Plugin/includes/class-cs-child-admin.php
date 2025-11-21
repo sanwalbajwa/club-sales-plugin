@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin functionality for the Club Child Users
- */
+ */ 
 class CS_Child_Admin {
     /**
      * Initialize admin hooks
