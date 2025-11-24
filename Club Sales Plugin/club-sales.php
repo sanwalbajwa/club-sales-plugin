@@ -61,7 +61,7 @@ function cs_activate_plugin() {
             'edit_posts' => false,
             'delete_posts' => false,
             'publish_posts' => false,
-            'upload_files' => false,
+            'upload_files' => false, 
         )
     );
     
