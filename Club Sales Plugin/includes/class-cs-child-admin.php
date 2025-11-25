@@ -6,7 +6,7 @@ class CS_Child_Admin {
     /**
      * Initialize admin hooks
      */
-    public static function init() {
+    public static function init() { 
         // Add admin menu
         add_action('admin_menu', array(__CLASS__, 'add_admin_menu'));
         
