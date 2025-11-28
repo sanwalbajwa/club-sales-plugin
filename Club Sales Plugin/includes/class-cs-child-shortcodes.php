@@ -6,7 +6,7 @@ function cs_debug_check_child_products() {
     if (!$child_id) {
         return "No child ID specified. Add ?debug_child_id=XX to the URL.";
     }
-    
+     
     // Check if the cs_child_products table exists
     $table_name = $wpdb->prefix . 'cs_child_products';
     $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'") === $table_name;
