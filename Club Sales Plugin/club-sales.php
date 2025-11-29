@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 }
  
 // Define plugin constants
-define('CS_VERSION', '2.0.0');
+define('CS_VERSION', '2.0.0'); 
 define('CS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('CS_PLUGIN_URL', plugin_dir_url(__FILE__));
 
