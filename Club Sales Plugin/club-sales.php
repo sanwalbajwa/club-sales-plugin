@@ -30,7 +30,7 @@ function cs_check_dependencies() {
             ?>
             <div class="notice notice-error">
                 <p><?php _e('Club Sales requires WooCommerce to be installed and activated.', 'club-sales'); ?></p>
-            </div>
+            </div> 
             <?php
         });
         return false;
