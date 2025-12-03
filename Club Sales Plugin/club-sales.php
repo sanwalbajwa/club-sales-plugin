@@ -48,7 +48,7 @@ function cs_activate_plugin() {
         'currency' => 'SEK',
         'date_format' => 'Y-m-d',
         'klarna_merchant_id' => '',
-        'klarna_shared_secret' => '',
+        'klarna_shared_secret' => '', 
         'klarna_test_mode' => 'yes'
     ));
 
