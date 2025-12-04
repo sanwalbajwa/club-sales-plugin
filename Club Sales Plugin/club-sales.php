@@ -9,7 +9,7 @@ Author URI: https://yourwebsite.com
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: club-sales
-*/
+*/ 
  
 // Prevent direct access to this file
 if (!defined('ABSPATH')) {
