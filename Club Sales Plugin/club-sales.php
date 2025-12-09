@@ -14,7 +14,7 @@ Text Domain: club-sales
 // Prevent direct access to this file
 if (!defined('ABSPATH')) {
     exit;
-}
+} 
   
 // Define plugin constants
 define('CS_VERSION', '2.0.0'); 
