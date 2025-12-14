@@ -13,7 +13,7 @@ Text Domain: club-sales
  
 // Prevent direct access to this file
 if (!defined('ABSPATH')) {
-    exit;
+    exit; 
 } 
   
 // Define plugin constants
