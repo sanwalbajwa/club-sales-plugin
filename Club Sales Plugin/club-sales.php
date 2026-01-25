@@ -1,7 +1,7 @@
 <?php
 /*    
 Plugin Name: Club Sales11   
-Plugin URI: https://yourwebsite.com/club-sales
+Plugin URI: https://yourwebsite.com/club-sales 
 Description: A comprehensive sales tracking system for clubs and schools with Klarna integration and child user management.
 Version: 2.0.0
 Author: Aftab
