@@ -42,7 +42,7 @@ function cs_check_dependencies() {
 function cs_activate_plugin() {
     // Create necessary database tables
     cs_create_tables();
-    
+     
     // Add default options
     add_option('cs_settings', array(
         'currency' => 'SEK',
