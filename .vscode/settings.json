@@ -1,0 +1,12 @@
+{
+    "php.validate.enable": false,
+    "php.suggest.basic": false,
+    "intelephense.diagnostics.enable": false,
+    "intelephense.diagnostics.undefinedTypes": false,
+    "intelephense.diagnostics.undefinedFunctions": false,
+    "intelephense.diagnostics.undefinedConstants": false,
+    "intelephense.diagnostics.undefinedVariables": false,
+    "intelephense.diagnostics.undefinedMethods": false,
+    "intelephense.diagnostics.undefinedProperties": false,
+    "php-cs-fixer.enable": false
+}
