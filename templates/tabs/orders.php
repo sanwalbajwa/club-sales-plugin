@@ -470,22 +470,22 @@
 }
 
 .cs-package-toggle {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    color: #4CAF50;
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    padding: 8px !important;
+    border-radius: 8px !important;
+    transition: all 0.3s ease !important;
+    color: #4CAF50 !important;
 }
 
 .cs-package-toggle:hover {
-    background: rgba(76, 175, 80, 0.1);
+    background: rgba(76, 175, 80, 0.1) !important;
 }
 
 .cs-package-toggle svg {
-    transition: transform 0.3s ease;
-    fill: transparent;
+    transition: transform 0.3s ease !important;
+    fill: transparent !important;
 }
 
 .cs-package-overview-container.collapsed .cs-package-toggle svg {

@@ -1915,17 +1915,29 @@ public static function handle_mark_order_delivered() {
     /**
      * Get package overview for pending orders
      */
+
+    /**
+     * Helper: get product field from post_meta (ACF saves values here too)
+     */
+    private static function get_product_field($field_name, $product_id) {
+        // Always try plain post_meta first - ACF saves the actual value here
+        // (The _prefixed key only stores the ACF field key reference, not the value)
+        $value = get_post_meta($product_id, $field_name, true);
+        if ($value !== '' && $value !== null) {
+            return $value;
+        }
+        // Fallback to ACF get_field if post_meta returned nothing
+        if (function_exists('get_field')) {
+            return get_field($field_name, $product_id);
+        }
+        return '';
+    }
+
     public static function handle_get_package_overview() {
         try {
             check_ajax_referer('cs-ajax-nonce', 'nonce');
             
             $user_id = get_current_user_id();
-            
-            // Check if ACF is available
-            if (!function_exists('get_field')) {
-                wp_send_json_error(array('message' => 'ACF not available'));
-                return;
-            }
             
             // Get user's children IDs
             $children = CS_Child_Manager::get_parent_children($user_id);
@@ -1943,23 +1955,30 @@ public static function handle_mark_order_delivered() {
             $user_ids_escaped = array_map('intval', $all_user_ids);
             $user_ids_string = implode(',', $user_ids_escaped);
             
-            $query = "SELECT * FROM $table_name WHERE user_id IN ($user_ids_string) AND status = 'pending' AND is_deleted = 0";
+            $query = "SELECT * FROM $table_name WHERE user_id IN ($user_ids_string) AND status = 'pending' AND deleted_at IS NULL";
             $orders = $wpdb->get_results($query);
             
             // Aggregate products across all pending orders
             $product_totals = array();
             
             foreach ($orders as $order) {
-                $order_data = maybe_unserialize($order->order_data);
+                $products_json = $order->products;
+                // Handle escaped JSON
+                if (strpos($products_json, '\"') !== false) {
+                    $products_json = stripslashes($products_json);
+                }
+                $products_data = json_decode($products_json, true);
                 
-                if (is_array($order_data) && !empty($order_data['products'])) {
-                    foreach ($order_data['products'] as $product) {
-                        if (!isset($product['product_id']) || !isset($product['quantity'])) {
+                if (is_array($products_data) && !empty($products_data)) {
+                    foreach ($products_data as $product) {
+                        // Products are stored with 'id' key (not 'product_id')
+                        $product_id = isset($product['product_id']) ? intval($product['product_id']) 
+                                    : (isset($product['id']) ? intval($product['id']) : 0);
+                        $quantity   = isset($product['quantity']) ? intval($product['quantity']) : 0;
+                        
+                        if (!$product_id || !$quantity) {
                             continue;
                         }
-                        
-                        $product_id = $product['product_id'];
-                        $quantity = $product['quantity'];
                         
                         if (!isset($product_totals[$product_id])) {
                             $product_totals[$product_id] = 0;
@@ -1972,36 +1991,51 @@ public static function handle_mark_order_delivered() {
             
             // Filter products that have full_box_only = true and calculate packaging
             $packages = array();
+            $debug_products = array();
             
             foreach ($product_totals as $product_id => $total_quantity) {
-                $full_box_only = get_field('full_box_only', $product_id);
-                $box_size = get_field('box_size', $product_id);
+                $full_box_only = self::get_product_field('full_box_only', $product_id);
+                $box_size      = self::get_product_field('box_size', $product_id);
+                
+                // Collect debug info for every product
+                $debug_products[] = array(
+                    'product_id'    => $product_id,
+                    'qty'           => $total_quantity,
+                    'full_box_only' => $full_box_only,
+                    'box_size'      => $box_size,
+                );
                 
                 // Only include products with full_box_only enabled and valid box_size
-                if ($full_box_only && !empty($box_size) && $box_size > 0) {
-                    $product = wc_get_product($product_id);
+                if ($full_box_only && !empty($box_size) && intval($box_size) > 0) {
+                    $box_size = intval($box_size);
+                    $product  = wc_get_product($product_id);
                     
                     if ($product) {
-                        $boxes_needed = ceil($total_quantity / $box_size);
+                        $boxes_needed    = ceil($total_quantity / $box_size);
                         $total_packaging = $boxes_needed * $box_size;
-                        $extra = $total_packaging - $total_quantity;
+                        $extra           = $total_packaging - $total_quantity;
                         
                         $packages[] = array(
-                            'product_id' => $product_id,
+                            'product_id'   => $product_id,
                             'product_name' => $product->get_name(),
-                            'sold' => $total_quantity,
-                            'box_size' => $box_size,
+                            'sold'         => $total_quantity,
+                            'box_size'     => $box_size,
                             'boxes_needed' => $boxes_needed,
-                            'packaging' => $total_packaging,
-                            'extra' => $extra
+                            'packaging'    => $total_packaging,
+                            'extra'        => $extra
                         );
                     }
                 }
             }
             
             wp_send_json_success(array(
-                'packages' => $packages,
-                'total_products' => count($packages)
+                'packages'       => $packages,
+                'total_products' => count($packages),
+                'debug'          => array(
+                    'order_count'    => count($orders),
+                    'product_totals' => $product_totals,
+                    'products_info'  => $debug_products,
+                )
             ));
             
         } catch (Exception $e) {
