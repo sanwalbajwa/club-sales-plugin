@@ -110,7 +110,6 @@
             </svg>
         </button>
     </div>
-    
     <div class="cs-package-body" id="cs-package-body">
         <div class="cs-package-grid" id="cs-package-grid">
             <!-- Package items will be loaded here -->
@@ -118,6 +117,12 @@
                 <span class="cs-loading-spinner"></span>
                 <p><?php _e('Laddar förpackningsöversikt...', 'club-sales'); ?></p>
             </div>
+        </div>
+    </div>
+    <div class="cs-package-info-alert" id="cs-package-info-alert">
+        <div style="background: #fff7f0; border: 1px solid #ff9800; color: #e65100; border-radius: 8px; padding: 12px 18px; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px; color: #ff9800;">&#9888;</span>
+            <span><?php _e('Leverantören skickar bara hela paket. Överskott betalas och kan säljas i efterhand.', 'club-sales'); ?></span>
         </div>
     </div>
 </div>
@@ -425,14 +430,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 25px;
-    background: linear-gradient(135deg, #f0fff4 0%, #e8f5e9 100%);
+    padding: 5px 25px;
+    background: linear-gradient(90deg, #00a73d 0%, #00c94a 100%);
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
 .cs-package-header:hover {
-    background: linear-gradient(135deg, #e8f5e9 0%, #dcedc8 100%);
+    background: linear-gradient(90deg, #00a73d 0%, #02a33d 100%);
 }
 
 .cs-package-header-left {
@@ -444,7 +449,7 @@
 .cs-package-icon {
     width: 48px;
     height: 48px;
-    background: #4CAF50;
+    background: transparent;
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -456,17 +461,23 @@
     fill: transparent;
 }
 
+.cs-package-title {
+    display: flex;
+    align-items: end;
+    gap: 15px;
+}
+
 .cs-package-title h3 {
     margin: 0;
-    font-size: 18px;
-    font-weight: 600;
-    color: #2c3e50;
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    color: #fff !important;
 }
 
 .cs-package-title p {
-    margin: 4px 0 0 0;
-    font-size: 14px;
-    color: #666;
+    margin: 4px 0 0 0 !important;
+    font-size: 14px !important;
+    color: #fff !important;
 }
 
 .cs-package-toggle {
@@ -476,7 +487,7 @@
     padding: 8px !important;
     border-radius: 8px !important;
     transition: all 0.3s ease !important;
-    color: #4CAF50 !important;
+    color: #fff !important;
 }
 
 .cs-package-toggle:hover {
@@ -486,6 +497,7 @@
 .cs-package-toggle svg {
     transition: transform 0.3s ease !important;
     fill: transparent !important;
+    width: 48px;
 }
 
 .cs-package-overview-container.collapsed .cs-package-toggle svg {
@@ -511,6 +523,9 @@
 }
  
 .cs-package-item {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
     background: white;
     border: 2px solid #e0e0e0;
     border-radius: 12px;
@@ -557,13 +572,16 @@
 
 .cs-package-item-stats {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    flex-direction: row;
+    gap: 30px;
 }
 
 .cs-package-stat-row {
     display: flex;
+    flex-direction: column;
     justify-content: space-between;
+    background-color: #f0fdf4;
+    padding: 10px;
     align-items: center;
     font-size: 14px;
 }
@@ -611,6 +629,10 @@
     color: #666;
 }
 
+div#cs-package-info-alert {
+    padding: 10px 25px;
+}
+
 /* Responsive Package Overview */
 @media (max-width: 768px) {
     .cs-package-grid {
@@ -618,9 +640,14 @@
     }
     
     .cs-package-header {
-        padding: 15px 20px;
+        padding: 5px 20px;
     }
     
+    .cs-package-title {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
     .cs-package-body {
         padding: 15px 20px;
     }
@@ -631,6 +658,11 @@
     
     .cs-package-title p {
         font-size: 13px;
+    }
+
+    .cs-package-item{
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
 

@@ -241,10 +241,11 @@ Produkt vald
 					id: $productCard.data('id'),
 					name: $productCard.data('name'),
 					price: $productCard.data('price'), // Base price (what you pay to supplier)
-					rrp: $productCard.data('rrp'), // Customer price
-					total_price: $productCard.data('rrp'), // Use RRP as the selling price
+					rrp: $productCard.data('rrp'), // Customer RRP price
+					total_price: $productCard.data('total-price') || $productCard.data('price'), // Swedish calculated price (what you actually pay)
 					sku: $productCard.data('sku'),
-					image: $productCard.find('.cs-product-image img').attr('src'),
+					image: $productCard.find('.cs-product-image img').length ?
+						$productCard.find('.cs-product-image img').attr('src') : null,
 					store_name: $productCard.data('store-name'),
 					vendor_id: $productCard.data('vendor-id'),
 					can_be_combined: $productCard.data('can-be-combined')
@@ -1785,6 +1786,12 @@ Välj fler produkter som kan kombineras från samma leverantör.
 			return;
 		}
 		$('.cs-package-overview-container').toggleClass('collapsed');
+		// Toggle info alert
+		if ($('.cs-package-overview-container').hasClass('collapsed')) {
+			$('#cs-package-info-alert').hide();
+		} else {
+			$('#cs-package-info-alert').show();
+		}
 	});
 
 	// ============================================
@@ -2158,7 +2165,7 @@ html += `
 			customerName,
 			teamName
 		});
-		console.log('🔵 swishNumber type:', typeof swishNumber, 'empty?', swishNumber === '' || swishNumber === undefined);
+		console.log('🔵 swishNumber type:', typeof swishNumber, 'empty?', !swishNumber);
 		showSwishQRModal(swishNumber, amount, orderNumber, customerName, teamName);
 	});
 
@@ -2753,11 +2760,7 @@ ${productsHtml}
 				customerPays = parseFloat($('#total_amount').val()) || 0;
 			} else {
 				// Calculate customer pays from RRP (default)
-				customerPays = cartItems.reduce((sum, p) => {
-					const rrp = parseFloat(p.rrp) || 0;
-					const qty = parseInt(p.quantity) || 1;
-					return sum + (rrp * qty);
-				}, 0);
+				customerPays = cartItems.reduce((sum, p) => sum + (p.rrp * p.quantity), 0);
 			}
 
 			const formData = {
@@ -3231,11 +3234,9 @@ ${product.name} - ${productPrice.toFixed(2)} ${csAjax.currency}
 			if (pricingMode === 'custom') {
 				// Use the custom price entered by user
 				customerPays = parseFloat($('#total_amount').val()) || 0;
-				console.log('💡 Using CUSTOM pricing mode - customer pays:', customerPays);
 			} else {
-				// Calculate from RRP (default mode)
-				customerPays = orderProducts.reduce((sum, p) => sum + (p.rrp * (p.quantity || 1)), 0);
-				console.log('💡 Using RRP pricing mode - customer pays:', customerPays);
+				// Calculate from RRP (default)
+				customerPays = orderProducts.reduce((sum, p) => sum + (p.rrp * p.quantity), 0);
 			}
 			
 			console.log('==========================================');
@@ -3253,7 +3254,7 @@ ${product.name} - ${productPrice.toFixed(2)} ${csAjax.currency}
 				phone: $('#phone').val().trim(),
 				address: $('#address').val().trim(),
 				total_amount: totalAmount.toFixed(2),
-				customer_pays: customerPays.toFixed(2), // RRP - what customer pays
+				customer_pays: customerPays.toFixed(2),
 				sale_date: $('#sale_date').val(),
 				notes: $('#notes').val(),
 				products: JSON.stringify(selectedProducts)
@@ -3265,7 +3266,7 @@ ${product.name} - ${productPrice.toFixed(2)} ${csAjax.currency}
 			console.log('  Full formData:', formData);
 			console.log('==========================================');
 
-			if (!formData.customer_name || !formData.phone || !formData.email || !formData.address) {
+			if (!formData.customer_name || !formData.email || !formData.phone || !formData.address) {
 				alert('Vänligen fyll i alla obligatoriska fält');
 				return false;
 			}
@@ -3397,7 +3398,7 @@ ${product.image ? `<img src="${product.image}" alt="${product.name}">` : '<svg w
 			imagesHtml += `
 <div class="cs-material-card cs-campaign-card" data-image-id="${img.id}">
 <div class="cs-material-card-image" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
-<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#2196F3" stroke-width="2">
+<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
 <circle cx="8.5" cy="8.5" r="1.5"></circle>
 <polyline points="21 15 16 10 5 21"></polyline>
