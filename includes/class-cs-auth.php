@@ -189,13 +189,6 @@ function cs_login_registration_form() {
         50% { transform: translateY(-20px); }
     }
     
-    /* Ensure page content stays above background layers */
-    body > * {
-        position: relative;
-        z-index: 10;
-    }
-
-    
     /* Header section */
     .cs-auth-header {
         text-align: center !important;
@@ -240,7 +233,7 @@ function cs_login_registration_form() {
     /* Container */
     .cs-auth-container {
         display: grid !important;
-        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)) !important;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)) !important;
         gap: 24px !important;
         max-width: 1100px !important;
         margin: 0 auto !important;
@@ -499,6 +492,22 @@ form.cs-auth-form label,
         .cs-auth-container {
             grid-template-columns: 1fr !important;
             max-width: 500px !important;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .cs-auth-container {
+            grid-template-columns: 1fr !important;
+            padding: 0 16px 40px !important;
+            max-width: 100% !important;
+        }
+        
+        .cs-auth-box {
+            padding: 24px 16px !important;
+        }
+        
+        .cs-form-row-50 {
+            grid-template-columns: 1fr !important;
         }
     }
     
