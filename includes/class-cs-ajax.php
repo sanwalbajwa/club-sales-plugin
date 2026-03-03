@@ -41,6 +41,9 @@ class CS_Ajax {
 		
 		// Package overview handler
 		add_action('wp_ajax_cs_get_package_overview', array(__CLASS__, 'handle_get_package_overview'));
+		
+		// Checkout modal handler
+		add_action('wp_ajax_cs_prepare_checkout_modal', array(__CLASS__, 'handle_prepare_checkout_modal'));
 	}
     
 	// New: Handle stats update checking
@@ -2042,6 +2045,148 @@ public static function handle_mark_order_delivered() {
             wp_send_json_error(array(
                 'message' => 'Error: ' . $e->getMessage()
             ));
+        }
+    }
+    
+    /**
+     * Prepare checkout modal data
+     * Adds items to cart and returns checkout form HTML along with order details
+     */
+    public static function handle_prepare_checkout_modal() {
+        try {
+            check_ajax_referer('cs-ajax-nonce', 'nonce');
+            
+            $sale_ids = array_map('intval', (array) $_POST['sale_ids']);
+            
+            if (empty($sale_ids)) {
+                wp_send_json_error('No orders to process');
+                return;
+            }
+            
+            // Process the orders and add to cart
+            $checkout_url = CS_Klarna::create_order($sale_ids);
+            
+            if (empty($checkout_url)) {
+                wp_send_json_error('Failed to prepare checkout');
+                return;
+            }
+            
+            // Get pending orders details
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'cs_sales';
+            $sale_ids_string = implode(',', $sale_ids);
+            
+            $query = "SELECT * FROM $table_name WHERE id IN ($sale_ids_string) AND deleted_at IS NULL";
+            $orders = $wpdb->get_results($query);
+            
+            // Format orders for display
+            $formatted_orders = array();
+            $total_amount = 0;
+            $product_totals = array();
+            
+            foreach ($orders as $order) {
+                $products_json = $order->products;
+                if (strpos($products_json, '\"') !== false) {
+                    $products_json = stripslashes($products_json);
+                }
+                $products_data = json_decode($products_json, true);
+                
+                $order_products = array();
+                if (is_array($products_data)) {
+                    foreach ($products_data as $product) {
+                        $product_id = isset($product['product_id']) ? intval($product['product_id']) 
+                                    : (isset($product['id']) ? intval($product['id']) : 0);
+                        $quantity = isset($product['quantity']) ? intval($product['quantity']) : 0;
+                        $price = isset($product['price']) ? floatval($product['price']) : 0;
+                        
+                        if ($product_id && $quantity) {
+                            $wc_product = wc_get_product($product_id);
+                            if ($wc_product) {
+                                $order_products[] = array(
+                                    'id' => $product_id,
+                                    'name' => $wc_product->get_name(),
+                                    'quantity' => $quantity,
+                                    'price' => $price,
+                                    'total' => $price * $quantity
+                                );
+                                
+                                // Aggregate for package overview
+                                if (!isset($product_totals[$product_id])) {
+                                    $product_totals[$product_id] = 0;
+                                }
+                                $product_totals[$product_id] += $quantity;
+                            }
+                        }
+                    }
+                }
+                
+                $formatted_orders[] = array(
+                    'id' => $order->id,
+                    'customer_name' => $order->customer_name,
+                    'customer_pays' => floatval($order->customer_pays),
+                    'products' => $order_products
+                );
+                
+                $total_amount += floatval($order->customer_pays);
+            }
+            
+            // Get package overview
+            $packages = array();
+            foreach ($product_totals as $product_id => $total_quantity) {
+                $full_box_only = self::get_product_field('full_box_only', $product_id);
+                $box_size = self::get_product_field('box_size', $product_id);
+                
+                if ($full_box_only && !empty($box_size) && intval($box_size) > 0) {
+                    $box_size = intval($box_size);
+                    $product = wc_get_product($product_id);
+                    
+                    if ($product) {
+                        $boxes_needed = ceil($total_quantity / $box_size);
+                        $total_packaging = $boxes_needed * $box_size;
+                        $extra = $total_packaging - $total_quantity;
+                        
+                        $packages[] = array(
+                            'product_id' => $product_id,
+                            'product_name' => $product->get_name(),
+                            'sold' => $total_quantity,
+                            'box_size' => $box_size,
+                            'boxes_needed' => $boxes_needed,
+                            'packaging' => $total_packaging,
+                            'extra' => $extra
+                        );
+                    }
+                }
+            }
+            
+            // Get WooCommerce checkout form HTML
+            ob_start();
+            echo do_shortcode('[woocommerce_checkout]');
+            $checkout_form_html = ob_get_clean();
+            
+            // Calculate totals
+            $cart = WC()->cart;
+            $cart_subtotal = $cart->get_subtotal();
+            $cart_tax = $cart->get_total_tax();
+            $cart_total = $cart->get_total('');
+            
+            // Prepare response data
+            wp_send_json_success(array(
+                'orders' => $formatted_orders,
+                'packages' => $packages,
+                'summary' => array(
+                    'subtotal' => $cart_subtotal,
+                    'tax' => $cart_tax,
+                    'total' => $cart_total,
+                    'order_count' => count($orders),
+                    'currency' => get_woocommerce_currency_symbol()
+                ),
+                'checkout_form' => $checkout_form_html,
+                'checkout_url' => $checkout_url
+            ));
+            
+        } catch (Exception $e) {
+            error_log("Checkout modal preparation error: " . $e->getMessage());
+            wp_send_json_error('Error: ' . $e->getMessage());
         }
     }
 }

@@ -2606,29 +2606,26 @@ ${productsHtml}
 	// ============================================
 
 	function processKlarnaCheckout(saleIds) {
-		$('#klarna-checkout-selected-btn').text('Processing...').prop('disabled', true);
+		$('#klarna-checkout-selected-btn').text('Bearbetar...').prop('disabled', true);
 
 		$.ajax({
 			url: csAjax.ajaxurl,
 			type: 'POST',
 			data: {
-				action: 'cs_process_klarna',
+				action: 'cs_prepare_checkout_modal',
 				nonce: csAjax.nonce,
 				sale_ids: saleIds
 			},
 			timeout: 30000,
 			success: function (response) {
-				if (response.success && response.data && response.data.redirect_url) {
-					if (response.data.stats_updated) {
-						triggerStatsUpdate();
-					}
-
-					const redirectUrl = response.data.redirect_url;
-					window.location.href = redirectUrl;
+				if (response.success && response.data) {
+					// Show checkout modal instead of redirecting
+					showCheckoutModal(response.data);
+					$('#klarna-checkout-selected-btn').text('Beställ Väntande Ordrar ( ' + $('#pending-orders-count').text() + ' )').prop('disabled', false);
 				} else {
 					console.error("Invalid response structure:", response);
 					alert('Error: ' + (response.data || 'Could not process orders - invalid response'));
-					$('#klarna-checkout-selected-btn').text('Process Orders').prop('disabled', false);
+					$('#klarna-checkout-selected-btn').text('Beställ Väntande Ordrar ( ' + $('#pending-orders-count').text() + ' )').prop('disabled', false);
 				}
 			},
 			error: function (xhr, status, error) {
@@ -2652,9 +2649,189 @@ ${productsHtml}
 				}
 
 				alert(errorMessage);
-				$('#klarna-checkout-selected-btn').text('Process Orders').prop('disabled', false);
+				$('#klarna-checkout-selected-btn').text('Beställ Väntande Ordrar ( ' + $('#pending-orders-count').text() + ' )').prop('disabled', false);
 			}
 		});
+	}
+	
+	// ============================================
+	// MODAL SCROLL LOCK HELPERS
+	// ============================================
+	
+	function lockBodyScroll() {
+		var scrollY = window.pageYOffset || document.documentElement.scrollTop;
+		document.body.dataset.scrollY = scrollY;
+		document.body.style.position = 'fixed';
+		document.body.style.top = '-' + scrollY + 'px';
+		document.body.style.left = '0';
+		document.body.style.right = '0';
+		document.body.style.overflow = 'hidden';
+	}
+	
+	function unlockBodyScroll() {
+		var scrollY = parseInt(document.body.dataset.scrollY || '0', 10);
+		document.body.style.position = '';
+		document.body.style.top = '';
+		document.body.style.left = '';
+		document.body.style.right = '';
+		document.body.style.overflow = '';
+		window.scrollTo(0, scrollY);
+	}
+	
+	// ============================================
+	// SHOW CHECKOUT MODAL
+	// ============================================
+	
+	function showCheckoutModal(data) {
+		// Create modal if it doesn't exist
+		if ($('#cs-checkout-modal').length === 0) {
+			$('body').append(`
+				<div id="cs-checkout-modal" class="cs-modal cs-checkout-modal">
+					<div class="cs-modal-content cs-checkout-modal-content">
+						<div class="cs-modal-header">
+							<h2>Slutför beställning</h2>
+							<span class="cs-modal-close">&times;</span>
+						</div>
+						<div id="cs-checkout-modal-body" class="cs-checkout-modal-body"></div>
+					</div>
+				</div>
+			`);
+			
+			// Close button handler
+			$('#cs-checkout-modal .cs-modal-close').on('click', function() {
+				$('#cs-checkout-modal').fadeOut(300);
+				unlockBodyScroll();
+			});
+			
+			// Click outside to close
+			$('#cs-checkout-modal').on('click', function(e) {
+				if ($(e.target).is('#cs-checkout-modal')) {
+					$('#cs-checkout-modal').fadeOut(300);
+					unlockBodyScroll();
+				}
+			});
+		}
+		
+		// Build modal content
+		let modalHtml = '<div class="cs-checkout-main-container">';
+		
+		// Left column - Orders and packages
+		modalHtml += '<div class="cs-checkout-left-column">';
+		
+		// Orders section
+		modalHtml += '<div class="cs-checkout-section">';
+		modalHtml += '<h3>Beställningar</h3>';
+		modalHtml += '<div class="cs-pending-orders-count">' + data.orders.length + ' väntande order</div>';
+		
+		data.orders.forEach(order => {
+			modalHtml += '<div class="cs-checkout-order-item">';
+			modalHtml += '<div class="cs-order-header">';
+			modalHtml += '<strong>' + order.customer_name + '</strong>';
+			modalHtml += '</div>';
+			modalHtml += '<div class="cs-order-products">';
+			order.products.forEach(product => {
+				modalHtml += '<div class="cs-product-line">';
+				modalHtml += product.name + ' / ' + product.quantity + ' st × ' + product.price.toFixed(2) + ' ' + data.summary.currency;
+				modalHtml += '</div>';
+			});
+			modalHtml += '</div>';
+			modalHtml += '</div>';
+		});
+		
+		modalHtml += '</div>';
+		
+		// Package overview section
+		if (data.packages && data.packages.length > 0) {
+			modalHtml += '<div class="cs-checkout-section cs-package-section">';
+			modalHtml += '<div class="cs-package-header" style="padding: 15px; border-radius: 15px; justify-content: flex">';
+			modalHtml += '<span class="cs-warning-icon">⚠️</span>';
+			modalHtml += '<h3 style="color:white !important; margin: 0 !important">Förpackningsöversikt</h3>';
+			modalHtml += '</div>';
+			modalHtml += '<div class="cs-package-info">';
+			modalHtml += '<p class="cs-package-notice">' + data.packages.length + ' produkt' + (data.packages.length > 1 ? 'er' : '') + ' · 4-6 st/förp</p>';
+			modalHtml += '<div class="cs-package-list">';
+			
+			data.packages.forEach(pkg => {
+				modalHtml += '<div class="cs-package-item">';
+				modalHtml += '<div class="cs-package-info-line">';
+				modalHtml += '<strong>' + pkg.product_name + ' / ' + pkg.box_size + ' st/förp</strong>';
+				modalHtml += '</div>';
+				modalHtml += '<div class="cs-package-details">';
+				modalHtml += '<div>Du har sålt: ' + pkg.sold + ' st</div>';
+				modalHtml += '<div>Förp: ' + pkg.packaging + ' st</div>';
+				modalHtml += '<div class="cs-extra-highlight">Överskott:+' + pkg.extra + ' st</div>';
+				modalHtml += '</div>';
+				modalHtml += '</div>';
+			});
+			
+			modalHtml += '</div>';
+			modalHtml += '</div>';
+			modalHtml += '</div>';
+		}
+		
+		modalHtml += '</div>'; // End left column
+		
+		// Right column - Summary and checkout form
+		modalHtml += '<div class="cs-checkout-right-column">';
+		
+		// Order summary
+		modalHtml += '<div class="cs-checkout-section cs-order-summary">';
+		modalHtml += '<h3>Ordersammanfattning</h3>';
+		modalHtml += '<div class="cs-summary-line">';
+		modalHtml += '<span>Delsumma</span>';
+		modalHtml += '<span>' + parseFloat(data.summary.subtotal).toFixed(2) + ' ' + data.summary.currency + '</span>';
+		modalHtml += '</div>';
+		modalHtml += '<div class="cs-summary-line">';
+		modalHtml += '<span>Moms (25%)</span>';
+		modalHtml += '<span>' + parseFloat(data.summary.tax).toFixed(2) + ' ' + data.summary.currency + '</span>';
+		modalHtml += '</div>';
+		modalHtml += '<div class="cs-summary-line">';
+		modalHtml += '<span>Frakt</span>';
+		modalHtml += '<span class="cs-free-badge">Ingår</span>';
+		modalHtml += '</div>';
+		modalHtml += '<div class="cs-summary-line cs-summary-total">';
+		modalHtml += '<span>Totalt</span>';
+		modalHtml += '<span class="cs-total-amount">' + parseFloat(data.summary.total).toFixed(2) + ' ' + data.summary.currency + '</span>';
+		modalHtml += '</div>';
+		modalHtml += '<div class="cs-payment-method">';
+		modalHtml += '<span>Betalningsmetod</span>';
+		modalHtml += '<span>Ingår</span>';
+		modalHtml += '</div>';
+		modalHtml += '</div>';
+		
+		// Checkout form section
+		modalHtml += '<div class="cs-checkout-section cs-custom-checkout-section">';
+		modalHtml += '<div class="cs-checkout-form-header">';
+		modalHtml += '<span class="cs-lock-icon">🔒</span>';
+		modalHtml += '<div>';
+		modalHtml += '<h3>Kustom Checkout</h3>';
+		modalHtml += '<p class="cs-checkout-subtitle">Här kommer dutan Checkout formulär att visas här:</p>';
+		modalHtml += '</div>';
+		modalHtml += '</div>';
+		modalHtml += '<div class="cs-checkout-features">';
+		modalHtml += '<div class="cs-feature">✓ Dina uppgifter</div>';
+		modalHtml += '<div class="cs-feature">✓ Leveransadress</div>';
+		modalHtml += '<div class="cs-feature">✓ Betalningssätt</div>';
+		modalHtml += '<div class="cs-feature">✓ Orderdetaljer</div>';
+		modalHtml += '</div>';
+		modalHtml += '<div class="cs-woocommerce-checkout-wrapper">';
+		modalHtml += data.checkout_form;
+		modalHtml += '</div>';
+		modalHtml += '</div>';
+		
+		modalHtml += '</div>'; // End right column
+		
+		modalHtml += '</div>'; // End main container
+		
+		// Insert content and show modal
+		$('#cs-checkout-modal-body').html(modalHtml);
+		lockBodyScroll();
+		$('#cs-checkout-modal').fadeIn(300);
+		
+		// Trigger WooCommerce checkout scripts
+		if (typeof jQuery !== 'undefined') {
+			jQuery(document.body).trigger('updated_checkout');
+		}
 	}
 
 	// ============================================
@@ -4234,14 +4411,14 @@ color: white;
 	
 	// Cart modal toggle
 	$(document).on('click', '#cs-cart-icon-btn', function() {
+		lockBodyScroll();
 		$('#cs-cart-modal').fadeIn(300);
-		$('body').css('overflow', 'hidden');
 	});
 	
 	// Close cart modal
 	$(document).on('click', '#cs-cart-modal-close, .cs-cart-modal-overlay', function() {
 		$('#cs-cart-modal').fadeOut(300);
-		$('body').css('overflow', '');
+		unlockBodyScroll();
 	});
 	
 	// Prevent modal content clicks from closing modal
