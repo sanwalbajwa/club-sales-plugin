@@ -118,13 +118,14 @@
 			id: $productCard.data('id'),
 			name: $productCard.data('name'),
 			price: $productCard.data('price'),
+			totalPrice: $productCard.data('total-price') || $productCard.data('price'),
 			rrp: $productCard.data('rrp'),
 			sku: $productCard.data('sku'),
 			supplier: $productCard.data('store-name'),
 			image: $productCard.find('.cs-product-image img').attr('src') || ''
 		};
-		// Calculate profit
-		const profit = parseFloat(productData.rrp) - parseFloat(productData.price);
+		// Calculate profit: RRP - NI BETALAR (total price)
+		const profit = parseFloat(productData.rrp) - parseFloat(productData.totalPrice);
 
 		// Populate detail view
 		$('#cs-detail-main-image').attr('src', productData.image);
@@ -132,7 +133,7 @@
 		$('#cs-detail-supplier-name-box').text(productData.supplier);
 		$('#cs-detail-sku').text(productData.sku);
 		$('#cs-detail-title').text(productData.name);
-		$('#cs-detail-club-price').text(parseFloat(productData.price).toFixed(2) + ' kr');
+		$('#cs-detail-club-price').text(parseFloat(productData.totalPrice).toFixed(2) + ' kr');
 		$('#cs-detail-rrp').text(parseFloat(productData.rrp).toFixed(2) + ' kr');
 		$('#cs-detail-profit').text(profit.toFixed(2) + ' kr');
 
@@ -797,7 +798,7 @@ ${imageHtml}
 			// Use RRP from product data if available, otherwise fallback to calculation
 			const rrpPrice = product.rrp && parseFloat(product.rrp) > 0 ? parseFloat(product.rrp) : (clubSalesPrice * 1.4);
 			const actualPrice = parseFloat(product.price) || 0;
-			const vinst = rrpPrice - actualPrice;
+			const vinst = rrpPrice - clubSalesPrice;
 
 // Product debug info available if needed
 
