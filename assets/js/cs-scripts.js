@@ -1882,7 +1882,7 @@ console.log(`📲 Order #${order.id} Swish QR Button Data:`, {
 	swish_is_empty: swishNum === '',
 	button_data_attribute: `data-swish-number="${swishNum}"`
 });
-actionButtons += `<button type="button" class="cs-order-action cs-swish-qr" data-id="${order.id}" data-amount="${customerPays}" data-order-number="${order.id}" data-swish-number="${swishNum}" data-customer-name="${order.customer_name || ''}" data-team-name="${order.team_name || order.user_name || ''}"><img src="https://subdomain.klubbforsaljning.se/wp-content/uploads/2026/02/swish-image.png" alt="Swish" style="height:18px;vertical-align:middle;" /> Swish QR</button>`;
+actionButtons += `<button type="button" class="cs-order-action cs-swish-qr" data-id="${order.id}" data-amount="${customerPays}" data-order-number="${order.id}" data-swish-number="${swishNum}" data-customer-name="${order.customer_name || ''}" data-team-name="${order.team_name || order.user_name || ''}"><img src="https://klubbforsaljning.se/wp-content/uploads/2026/02/swish-image.png" alt="Swish" style="height:18px;vertical-align:middle;" /> Swish QR</button>`;
 actionButtons += `<button type="button" class="cs-order-action cs-complete-order" data-id="${order.id}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><polyline points="20 6 9 17 4 12"></polyline></svg>Slutför</button>`;
 }
 }
@@ -2606,7 +2606,9 @@ ${productsHtml}
 	// ============================================
 
 	function processKlarnaCheckout(saleIds) {
-		$('#klarna-checkout-selected-btn').text('Bearbetar...').prop('disabled', true);
+		var $btn = $('#klarna-checkout-selected-btn');
+		var originalBtnHtml = $btn.html();
+		$btn.html('<span>Bearbetar...</span>').prop('disabled', true);
 
 		$.ajax({
 			url: csAjax.ajaxurl,
@@ -2621,11 +2623,11 @@ ${productsHtml}
 				if (response.success && response.data) {
 					// Show checkout modal instead of redirecting
 					showCheckoutModal(response.data);
-					$('#klarna-checkout-selected-btn').text('Beställ Väntande Ordrar ( ' + $('#pending-orders-count').text() + ' )').prop('disabled', false);
+					$btn.html(originalBtnHtml).prop('disabled', false);
 				} else {
 					console.error("Invalid response structure:", response);
 					alert('Error: ' + (response.data || 'Could not process orders - invalid response'));
-					$('#klarna-checkout-selected-btn').text('Beställ Väntande Ordrar ( ' + $('#pending-orders-count').text() + ' )').prop('disabled', false);
+					$btn.html(originalBtnHtml).prop('disabled', false);
 				}
 			},
 			error: function (xhr, status, error) {
@@ -2649,33 +2651,9 @@ ${productsHtml}
 				}
 
 				alert(errorMessage);
-				$('#klarna-checkout-selected-btn').text('Beställ Väntande Ordrar ( ' + $('#pending-orders-count').text() + ' )').prop('disabled', false);
+				$btn.html(originalBtnHtml).prop('disabled', false);
 			}
 		});
-	}
-	
-	// ============================================
-	// MODAL SCROLL LOCK HELPERS
-	// ============================================
-	
-	function lockBodyScroll() {
-		var scrollY = window.pageYOffset || document.documentElement.scrollTop;
-		document.body.dataset.scrollY = scrollY;
-		document.body.style.position = 'fixed';
-		document.body.style.top = '-' + scrollY + 'px';
-		document.body.style.left = '0';
-		document.body.style.right = '0';
-		document.body.style.overflow = 'hidden';
-	}
-	
-	function unlockBodyScroll() {
-		var scrollY = parseInt(document.body.dataset.scrollY || '0', 10);
-		document.body.style.position = '';
-		document.body.style.top = '';
-		document.body.style.left = '';
-		document.body.style.right = '';
-		document.body.style.overflow = '';
-		window.scrollTo(0, scrollY);
 	}
 	
 	// ============================================
@@ -2683,34 +2661,44 @@ ${productsHtml}
 	// ============================================
 	
 	function showCheckoutModal(data) {
-		// Create modal if it doesn't exist
-		if ($('#cs-checkout-modal').length === 0) {
-			$('body').append(`
-				<div id="cs-checkout-modal" class="cs-modal cs-checkout-modal">
-					<div class="cs-modal-content cs-checkout-modal-content">
-						<div class="cs-modal-header">
-							<h2>Slutför beställning</h2>
-							<span class="cs-modal-close">&times;</span>
-						</div>
-						<div id="cs-checkout-modal-body" class="cs-checkout-modal-body"></div>
+		// Always recreate modal fresh (remove old one if exists)
+		$('#cs-checkout-modal').remove();
+		
+		// Save body classes before WooCommerce modifies them
+		var originalBodyClasses = document.body.className;
+		
+		$('body').append(`
+			<div id="cs-checkout-modal" class="cs-modal cs-checkout-modal">
+				<div class="cs-modal-content cs-checkout-modal-content">
+					<div class="cs-modal-header">
+						<h2>Slutför beställning</h2>
+						<span class="cs-modal-close">&times;</span>
 					</div>
+					<div id="cs-checkout-modal-body" class="cs-checkout-modal-body"></div>
 				</div>
-			`);
-			
-			// Close button handler
-			$('#cs-checkout-modal .cs-modal-close').on('click', function() {
-				$('#cs-checkout-modal').fadeOut(300);
-				unlockBodyScroll();
-			});
-			
-			// Click outside to close
-			$('#cs-checkout-modal').on('click', function(e) {
-				if ($(e.target).is('#cs-checkout-modal')) {
-					$('#cs-checkout-modal').fadeOut(300);
-					unlockBodyScroll();
-				}
+			</div>
+		`);
+		
+		// Close handler: remove modal entirely and restore body classes
+		function destroyCheckoutModal() {
+			$('#cs-checkout-modal').fadeOut(300, function() {
+				$(this).remove();
+				// Restore original body classes (undo WooCommerce modifications)
+				document.body.className = originalBodyClasses;
 			});
 		}
+		
+		// Close button handler
+		$('#cs-checkout-modal .cs-modal-close').on('click', function() {
+			destroyCheckoutModal();
+		});
+		
+		// Click outside to close
+		$('#cs-checkout-modal').on('click', function(e) {
+			if ($(e.target).is('#cs-checkout-modal')) {
+				destroyCheckoutModal();
+			}
+		});
 		
 		// Build modal content
 		let modalHtml = '<div class="cs-checkout-main-container">';
@@ -2743,7 +2731,7 @@ ${productsHtml}
 		// Package overview section
 		if (data.packages && data.packages.length > 0) {
 			modalHtml += '<div class="cs-checkout-section cs-package-section">';
-			modalHtml += '<div class="cs-package-header" style="padding: 15px; border-radius: 15px; justify-content: flex">';
+			modalHtml += '<div class="cs-package-header" style="padding: 15px; border-radius: 15px; justify-content: start;">';
 			modalHtml += '<span class="cs-warning-icon">⚠️</span>';
 			modalHtml += '<h3 style="color:white !important; margin: 0 !important">Förpackningsöversikt</h3>';
 			modalHtml += '</div>';
@@ -2825,8 +2813,13 @@ ${productsHtml}
 		
 		// Insert content and show modal
 		$('#cs-checkout-modal-body').html(modalHtml);
-		lockBodyScroll();
 		$('#cs-checkout-modal').fadeIn(300);
+		
+		// Move billing fields (col-1) to left column after package section
+		var $billingCol = $('#cs-checkout-modal .col-1').detach();
+		if ($billingCol.length) {
+			$('#cs-checkout-modal .cs-checkout-left-column').append($billingCol);
+		}
 		
 		// Trigger WooCommerce checkout scripts
 		if (typeof jQuery !== 'undefined') {
@@ -4411,14 +4404,12 @@ color: white;
 	
 	// Cart modal toggle
 	$(document).on('click', '#cs-cart-icon-btn', function() {
-		lockBodyScroll();
 		$('#cs-cart-modal').fadeIn(300);
 	});
 	
 	// Close cart modal
 	$(document).on('click', '#cs-cart-modal-close, .cs-cart-modal-overlay', function() {
 		$('#cs-cart-modal').fadeOut(300);
-		unlockBodyScroll();
 	});
 	
 	// Prevent modal content clicks from closing modal

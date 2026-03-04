@@ -756,6 +756,7 @@ function cs_display_price_above_short_description() {
                         }
                         
                         .cs-calculated-price-above-desc span {
+                            color : #fff;
                             font-weight: 700;
                             font-size: 16px;
                         }
