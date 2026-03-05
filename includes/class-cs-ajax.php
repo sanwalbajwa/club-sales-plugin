@@ -247,8 +247,12 @@ public static function handle_product_search() {
                         $rrp = $product->get_regular_price();
                     }
                     
-                    // Get supplier/store name
-                    $supplier = function_exists('get_field') ? get_field('butik', $product_id) : '';
+                    // Get supplier/store name - nickname first
+                    $post_author = get_post_field('post_author', $product_id);
+                    $supplier = $post_author ? get_user_meta($post_author, 'nickname', true) : '';
+                    if (empty($supplier)) {
+                        $supplier = function_exists('get_field') ? get_field('butik', $product_id) : '';
+                    }
                     if (empty($supplier)) {
                         $supplier = get_post_meta($product_id, '_store_name', true);
                     }
@@ -1734,8 +1738,12 @@ public static function handle_mark_order_delivered() {
                     $rrp = $product->get_regular_price();
                 }
                 
-                // Get supplier/store name
-                $supplier = function_exists('get_field') ? get_field('butik', $product->get_id()) : '';
+                // Get supplier/store name - nickname first
+                $post_author = get_post_field('post_author', $product->get_id());
+                $supplier = $post_author ? get_user_meta($post_author, 'nickname', true) : '';
+                if (empty($supplier)) {
+                    $supplier = function_exists('get_field') ? get_field('butik', $product->get_id()) : '';
+                }
                 if (empty($supplier)) {
                     $supplier = get_post_meta($product->get_id(), '_store_name', true);
                 }

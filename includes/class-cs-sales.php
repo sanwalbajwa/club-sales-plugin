@@ -272,10 +272,14 @@ public static function get_product_vendor_info($product_id) {
             $vendor_info['vendor_name'] = $vendor_data->display_name;
         }
         
-        // Get store name from WCFM Marketplace
-        $store_name = get_user_meta($vendor_id, 'wcfmmp_store_name', true);
+        // Get store name - nickname first, then WCFM/store_name fallbacks
+        $store_name = get_user_meta($vendor_id, 'nickname', true);
         
-        // Fallback to store_name if wcfmmp_store_name is empty
+        if (empty($store_name)) {
+            $store_name = get_user_meta($vendor_id, 'wcfmmp_store_name', true);
+        }
+        
+        // Fallback to store_name if still empty
         if (empty($store_name)) {
             $store_name = get_user_meta($vendor_id, 'store_name', true);
         }
