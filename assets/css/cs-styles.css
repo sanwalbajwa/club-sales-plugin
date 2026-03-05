@@ -8215,8 +8215,16 @@ div#swish-qr-container img
 .cs-woocommerce-checkout-wrapper {
     background: white;
     border-radius: 12px;
-    padding: 20px;
+    overflow: hidden;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Klarna checkout iframe */
+#cs-checkout-iframe {
+    width: 100%;
+    min-height: 700px;
+    border: none;
+    display: block;
 }
 
 /* WooCommerce checkout form styling overrides */

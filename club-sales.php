@@ -392,6 +392,48 @@ class ClubSalesPlugin {
         
         // Load text domain for translations
         load_plugin_textdomain('club-sales', false, dirname(plugin_basename(__FILE__)) . '/languages');
+
+        // Minimal checkout template when loaded inside modal iframe
+        add_action('template_redirect', array($this, 'maybe_render_modal_checkout'));
+    }
+
+    /**
+     * Render a minimal checkout page (no header/footer) when loaded in modal iframe
+     */
+    public function maybe_render_modal_checkout() {
+        if (!is_checkout() || empty($_GET['cs_modal'])) {
+            return;
+        }
+        show_admin_bar(false);
+        ?>
+        <!DOCTYPE html>
+        <html <?php language_attributes(); ?>>
+        <head>
+            <meta charset="<?php bloginfo('charset'); ?>">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <?php wp_head(); ?>
+            <style>
+                body { background: #fff !important; margin: 0; padding: 20px; }
+                .site-header, .site-footer, .site-navigation,
+                .sidebar, #masthead, #colophon, .breadcrumb,
+                .page-title, .entry-title, .woocommerce-breadcrumb,
+                header, footer, nav, .header, .footer,
+                .elementor-location-header, .elementor-location-footer { display: none !important; }
+                .site-content, .entry-content, .page-content,
+                .woocommerce, #content, #primary, main { 
+                    width: 100% !important; max-width: 100% !important;
+                    margin: 0 !important; padding: 0 !important;
+                    float: none !important;
+                }
+            </style>
+        </head>
+        <body <?php body_class('cs-modal-checkout'); ?>>
+            <?php echo do_shortcode('[woocommerce_checkout]'); ?>
+            <?php wp_footer(); ?>
+        </body>
+        </html>
+        <?php
+        exit;
     }
     
 	public function enqueue_scripts() {

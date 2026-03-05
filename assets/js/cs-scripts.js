@@ -2788,23 +2788,11 @@ ${productsHtml}
 		modalHtml += '</div>';
 		modalHtml += '</div>';
 		
-		// Checkout form section
+		// Checkout form section (Klarna via iframe)
 		modalHtml += '<div class="cs-checkout-section cs-custom-checkout-section">';
-		modalHtml += '<div class="cs-checkout-form-header">';
-		modalHtml += '<span class="cs-lock-icon">🔒</span>';
-		modalHtml += '<div>';
-		modalHtml += '<h3>Kustom Checkout</h3>';
-		modalHtml += '<p class="cs-checkout-subtitle">Här kommer dutan Checkout formulär att visas här:</p>';
-		modalHtml += '</div>';
-		modalHtml += '</div>';
-		modalHtml += '<div class="cs-checkout-features">';
-		modalHtml += '<div class="cs-feature">✓ Dina uppgifter</div>';
-		modalHtml += '<div class="cs-feature">✓ Leveransadress</div>';
-		modalHtml += '<div class="cs-feature">✓ Betalningssätt</div>';
-		modalHtml += '<div class="cs-feature">✓ Orderdetaljer</div>';
-		modalHtml += '</div>';
 		modalHtml += '<div class="cs-woocommerce-checkout-wrapper">';
-		modalHtml += data.checkout_form;
+		var checkoutUrl = data.checkout_url + (data.checkout_url.indexOf('?') !== -1 ? '&' : '?') + 'cs_modal=1';
+		modalHtml += '<iframe id="cs-checkout-iframe" src="' + checkoutUrl + '" frameborder="0" allowpaymentrequest></iframe>';
 		modalHtml += '</div>';
 		modalHtml += '</div>';
 		
@@ -2816,16 +2804,22 @@ ${productsHtml}
 		$('#cs-checkout-modal-body').html(modalHtml);
 		$('#cs-checkout-modal').fadeIn(300);
 		
-		// Move billing fields (col-1) to left column after package section
-		var $billingCol = $('#cs-checkout-modal .col-1').detach();
-		if ($billingCol.length) {
-			$('#cs-checkout-modal .cs-checkout-left-column').append($billingCol);
-		}
-		
-		// Trigger WooCommerce checkout scripts
-		if (typeof jQuery !== 'undefined') {
-			jQuery(document.body).trigger('updated_checkout');
-		}
+		// Listen for successful checkout in iframe
+		$('#cs-checkout-iframe').on('load', function() {
+			try {
+				var iframeUrl = this.contentWindow.location.href;
+				// If redirected to order-received/thank-you page, close modal and refresh orders
+				if (iframeUrl.indexOf('order-received') !== -1 || iframeUrl.indexOf('thank-you') !== -1) {
+					setTimeout(function() {
+						destroyCheckoutModal();
+						loadOrders();
+						alert('Beställningen har genomförts!');
+					}, 2000);
+				}
+			} catch(e) {
+				// Cross-origin restriction - can't read iframe URL, that's fine
+			}
+		});
 	}
 
 	// ============================================
