@@ -2272,7 +2272,10 @@ window.showLocalSwishQR = function(cleanNumber, amount, orderNumber, customerNam
 	});
 	console.log('🟡 cleanNumber empty?', !cleanNumber, 'length:', cleanNumber ? cleanNumber.length : 0);
 	
-	const swishUrl = `https://app.swish.nu/1/p/sw/?sw=${cleanNumber}&amt=${parseFloat(amount).toFixed(2)}&msg=Order%20${orderNumber}`;
+	const swishMsg = teamName 
+		? `Order%20${orderNumber}%20-%20Referens%20${encodeURIComponent(teamName)}`
+		: `Order%20${orderNumber}`;
+	const swishUrl = `https://app.swish.nu/1/p/sw/?sw=${cleanNumber}&amt=${parseFloat(amount).toFixed(2)}&msg=${swishMsg}`;
 	console.log('🟡 Generated Swish URL:', swishUrl);
 	const container = document.getElementById('swish-qr-container');
 	$('#swish-qr-image').hide();

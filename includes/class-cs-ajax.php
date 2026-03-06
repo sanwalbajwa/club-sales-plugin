@@ -952,11 +952,12 @@ public static function handle_get_sales() {
             $sale->is_deleted = !is_null($sale->deleted_at);
             
             // ALWAYS fetch CURRENT swish number (not historical stored value)
-            // Get team information for child users
+            // Get team information
             $sale->team_name = '';
             $current_swish = '';
             
             if ($sale->is_child) {
+                // Child user: look up team via assigned_team meta
                 $team_id = get_user_meta($sale->user_id, 'assigned_team', true);
                 error_log("🔍 Order #{$sale->id}: Child user {$sale->user_id}, assigned_team ID: " . ($team_id ? $team_id : 'NONE'));
                 
@@ -974,6 +975,17 @@ public static function handle_get_sales() {
                     }
                 } else {
                     error_log("⚠️ Order #{$sale->id}: Child user has NO assigned_team in user_meta!");
+                }
+            } else {
+                // Parent/club leader: look up team they own
+                $team = $wpdb->get_row($wpdb->prepare(
+                    "SELECT name, swish_number FROM {$wpdb->prefix}cs_teams WHERE user_id = %d ORDER BY created_at DESC LIMIT 1",
+                    $sale->user_id
+                ));
+                if ($team) {
+                    $sale->team_name = $team->name;
+                    $current_swish = $team->swish_number ? trim($team->swish_number) : '';
+                    error_log("📱 Order #{$sale->id}: Parent user - Team '{$team->name}' swish: " . ($current_swish ? $current_swish : 'EMPTY'));
                 }
             }
             
