@@ -763,6 +763,17 @@ function cs_display_price_above_short_description() {
     error_log('Total Price: ' . $total_price);
     error_log('Rounded Total Price: ' . $rounded_total_price);
     
+    // Get RRP (Recommended Retail Price)
+    $rrp = 0;
+    if ($product_id && function_exists('get_field')) {
+        $rrp = floatval(get_field('rrp', $product_id));
+    }
+    if (empty($rrp) && isset($product) && $product) {
+        $rrp = floatval($product->get_regular_price());
+    }
+    $profit_amount = $rrp - $rounded_total_price;
+    $profit_margin = $rounded_total_price > 0 ? (($rrp - $rounded_total_price) / $rounded_total_price) * 100 : 0;
+    
     // Output debug information
     $currency = get_woocommerce_currency_symbol();
     
@@ -773,11 +784,21 @@ function cs_display_price_above_short_description() {
             const $shortDescField = $('.excerpt_title, .excerpt.wcfm_title, p.excerpt');
             
             if ($shortDescField.length) {
-                // Create the price display element - using plain text instead of translation function
+                // Create the price display element
                 const priceHtml = `
                     <div class="cs-calculated-price-above-desc" id="cs_above_short_desc">
-                        <span>Customer pays: </span>
-                        <span class="cs-price-value"><?php echo number_format($rounded_total_price, 2) . ' SEK'?></span>
+                        <div class="cs-admin-price-line">
+                            <span>Customer pays:</span>
+                            <span class="cs-price-value"><?php echo number_format($rounded_total_price, 2) . ' SEK'?></span>
+                        </div>
+                        <div class="cs-admin-price-line">
+                            <span>Recommended Retail Price:</span>
+                            <span class="cs-rrp-value"><?php echo number_format($rrp, 2) . ' SEK'?></span>
+                        </div>
+                        <div class="cs-admin-price-line">
+                            <span>Profit margin per sale:</span>
+                            <span class="cs-profit-value"><?php echo number_format($profit_amount, 2) . ' SEK (' . number_format($profit_margin, 1) . '%)'?></span>
+                        </div>
                     </div>
                 `;
                 
@@ -789,18 +810,38 @@ function cs_display_price_above_short_description() {
                     <style>
                         .cs-calculated-price-above-desc {
                             margin: 15px 0;
-                            padding: 12px 15px;
+                            padding: 16px 20px;
                             background-color: #000;
                             color: #fff;
-                            border-radius: 4px;
+                            border-radius: 8px;
                             display: inline-block;
                             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+                            min-width: 320px;
+                        }
+                        
+                        .cs-admin-price-line {
+                            display: flex;
+                            justify-content: space-between;
+                            gap: 20px;
+                            padding: 4px 0;
                         }
                         
                         .cs-calculated-price-above-desc span {
-                            color : #fff;
+                            color: #fff;
+                            font-weight: 600;
+                            font-size: 14px;
+                        }
+                        
+                        .cs-calculated-price-above-desc .cs-price-value,
+                        .cs-calculated-price-above-desc .cs-rrp-value {
                             font-weight: 700;
-                            font-size: 16px;
+                            font-size: 15px;
+                        }
+                        
+                        .cs-calculated-price-above-desc .cs-profit-value {
+                            color: #4ade80;
+                            font-weight: 700;
+                            font-size: 15px;
                         }
                     </style>
                 `);
@@ -897,9 +938,43 @@ function cs_add_vendor_price_update_script() {
             // Calculate total price
             const totalPrice = calculatePrice(basePrice, vatRate);
             
+            // Get RRP from the RRP field
+            let rrp = 0;
+            const $rrpField = $('#f0ed791c0fc0a2f5b856a13c88f2882c, .cs-rrp-field-container input');
+            if ($rrpField.length) {
+                rrp = parseFloat($rrpField.val()) || 0;
+            }
+            
+            // Calculate profit
+            const profitAmount = rrp - totalPrice;
+            const profitMargin = totalPrice > 0 ? ((rrp - totalPrice) / totalPrice) * 100 : 0;
+            
             // Update the display if it exists
             if ($('#cs_above_short_desc').length) {
                 $('#cs_above_short_desc .cs-price-value').text(totalPrice.toFixed(2) + ' SEK');
+                $('#cs_above_short_desc .cs-rrp-value').text(rrp.toFixed(2) + ' SEK');
+                $('#cs_above_short_desc .cs-profit-value').text(profitAmount.toFixed(2) + ' SEK (' + profitMargin.toFixed(1) + '%)');
+            }
+        });
+        
+        // Update profit when RRP field changes
+        $(document).on('input change keyup', '#f0ed791c0fc0a2f5b856a13c88f2882c, .cs-rrp-field-container input', function() {
+            const rrp = parseFloat($(this).val()) || 0;
+            const basePrice = $('#regular_price, input[name="regular_price"], #_regular_price').first().val();
+            
+            let vatRate = <?php echo $vat_rate; ?>;
+            const $vatField = $('#d04a4a2c8b7ac4a76c18da1a927e7aea, .cs-vat-field-container input');
+            if ($vatField.length) {
+                vatRate = parseFloat($vatField.val()) || vatRate;
+            }
+            
+            const totalPrice = calculatePrice(basePrice, vatRate);
+            const profitAmount = rrp - totalPrice;
+            const profitMargin = totalPrice > 0 ? ((rrp - totalPrice) / totalPrice) * 100 : 0;
+            
+            if ($('#cs_above_short_desc').length) {
+                $('#cs_above_short_desc .cs-rrp-value').text(rrp.toFixed(2) + ' SEK');
+                $('#cs_above_short_desc .cs-profit-value').text(profitAmount.toFixed(2) + ' SEK (' + profitMargin.toFixed(1) + '%)');
             }
         });
         
