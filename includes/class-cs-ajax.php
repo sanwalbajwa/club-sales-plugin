@@ -2105,7 +2105,10 @@ public static function handle_mark_order_delivered() {
                         $product_id = isset($product['product_id']) ? intval($product['product_id']) 
                                     : (isset($product['id']) ? intval($product['id']) : 0);
                         $quantity = isset($product['quantity']) ? intval($product['quantity']) : 0;
-                        $price = isset($product['price']) ? floatval($product['price']) : 0;
+                        // Use total_price (calculated with margin+VAT+rounding) for display, fall back to price
+                        $price = isset($product['total_price']) && floatval($product['total_price']) > 0
+                            ? floatval($product['total_price'])
+                            : (isset($product['price']) ? floatval($product['price']) : 0);
                         
                         if ($product_id && $quantity) {
                             $wc_product = wc_get_product($product_id);

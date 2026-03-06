@@ -142,14 +142,6 @@ h2 {
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
-.cs-product-image {
-    height: 150px;
-    background-color: #f8f8f8;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .cs-product-info {
     padding: 15px;
 }
@@ -874,7 +866,7 @@ span.wcfm_products_limit_label {
     }
     
     .cs-orders-table td:nth-child(7)::before {
-        content: 'Vinst\\A';
+        content: 'Vinst';
         white-space: pre;
         font-size: 11px;
         font-weight: 500;
@@ -899,7 +891,7 @@ span.wcfm_products_limit_label {
     }
     
     .cs-orders-table td:nth-child(5)::before {
-        content: 'Betalning';
+        content: 'NI betalar';
         display: block;
         font-size: 11px;
         font-weight: 600;
@@ -910,7 +902,7 @@ span.wcfm_products_limit_label {
     }
     
     .cs-orders-table td:nth-child(6)::before {
-        content: 'NI betalar';
+        content: 'Betalning';
         display: block;
         font-size: 11px;
         font-weight: 600;
@@ -2280,10 +2272,13 @@ li.cs-tab-item.active .cs-tab-label {
 /* Product Image */
 .cs-product-image {
     width: 100%;
-    height: 240px;
+    height: 290px;
     overflow: hidden;
     background: #f9fafb;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .cs-product-image img {
@@ -2615,14 +2610,14 @@ li.cs-tab-item.active .cs-tab-label {
     max-width: 1200px;
     margin: 0 auto;
     padding: 40px 20px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
     gap: 60px;
 }
 
 .cs-detail-left {
     position: sticky;
     top: 20px;
+    width: 50%;
     height: fit-content;
     background: white;
     border-radius: 16px;
@@ -2642,6 +2637,40 @@ li.cs-tab-item.active .cs-tab-label {
     width: 100%;
     height: auto;
     border-radius: 0px !important;
+}
+
+.cs-detail-gallery {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.cs-gallery-thumb {
+    width: 72px;
+    height: 72px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid #e5e7eb;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cs-gallery-thumb:hover {
+    border-color: #00ac3f;
+}
+
+.cs-gallery-thumb.active {
+    border-color: #00ac3f;
+    box-shadow: 0 0 0 2px rgba(0, 172, 63, 0.25);
+}
+
+.cs-gallery-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .cs-detail-childs {
@@ -2832,7 +2861,16 @@ li.cs-tab-item.active .cs-tab-label {
     }
 
     .cs-detail-content {
+        flex-direction: column;
         padding: 20px 15px;
+    }
+
+    .cs-detail-left{
+        width: 100%;
+    }
+    
+    .cs-detail-childs{
+        flex-direction: column;
     }
 
     .cs-detail-title {
@@ -3773,6 +3811,7 @@ form#cs-order-form input#total_amount {
 form#cs-order-form input#sale_date {
     background-color: white !important;
     border-color: #00af40 !important;
+    color: #000 !important;
 }
 
 .cs-product-title {
@@ -4108,6 +4147,7 @@ table.cs-orders-table td:nth-child(9) {
     width: auto;
     min-width: 380px;
     padding: 16px 12px;
+    display: flex;
 }
 
 .cs-order-actions {
@@ -8060,53 +8100,135 @@ div#swish-qr-container img
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
 }
 
-.cs-warning-icon {
+.cs-package-header-icon {
+    width: 48px;
+    height: 48px;
+    background: #f97316;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 24px;
+    flex-shrink: 0;
 }
 
-.cs-package-notice {
-    font-size: 13px;
-    color: #92400e;
-    margin: 0 0 16px 0;
+.cs-package-header-text h3 {
+    margin: 0 0 2px 0 !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    color: #fff !important;
+}
+
+.cs-package-subtitle {
+    margin: 0;
+    font-size: 14px;
+    color: #f97316;
     font-weight: 600;
 }
 
 .cs-package-list {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
 }
 
 .cs-package-item {
     background: white;
-    border-radius: 8px;
-    padding: 12px;
-    border: 1px solid #fbbf24;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #e5e7eb;
 }
 
-.cs-package-info-line {
-    margin-bottom: 8px;
-}
-
-.cs-package-info-line strong {
+.cs-package-item-name {
+    font-size: 16px;
+    font-weight: 700;
     color: #111827;
-    font-size: 14px;
+    margin-bottom: 12px;
 }
 
-.cs-package-details {
+.cs-package-divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 0 0 16px 0;
+}
+
+.cs-package-stat-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.cs-stat-card {
+    border-radius: 12px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    font-size: 13px;
-    color: #6b7280;
 }
 
-.cs-extra-highlight {
-    color: #f59e0b;
+.cs-stat-sold {
+    background: #eff6ff;
+    border: 2px solid #93c5fd;
+}
+
+.cs-stat-delivered {
+    background: #f0fdf4;
+    border: 2px solid #6ee7b7;
+}
+
+.cs-stat-label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.cs-stat-sold .cs-stat-label {
+    color: #dc2626;
+}
+
+.cs-stat-delivered .cs-stat-label {
+    color: #16a34a;
+}
+
+.cs-stat-value {
+    font-size: 36px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1;
+}
+
+.cs-stat-value small {
+    font-size: 18px;
     font-weight: 600;
+}
+
+.cs-stat-sub {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+.cs-package-surplus {
+    background: #fef3c7;
+    border: 1px solid #fbbf24;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #92400e;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cs-surplus-icon {
+    color: #f59e0b;
+    font-size: 18px;
 }
 
 /* Order summary */
@@ -8162,6 +8284,60 @@ div#swish-qr-container img
     border-top: 1px solid #e5e7eb;
     font-size: 14px;
     color: #6b7280;
+}
+
+/* Package info boxes */
+.cs-package-info-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.cs-info-box {
+    padding: 16px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #374151;
+}
+
+.cs-info-box h4 {
+    margin: 0 0 8px 0 !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #111827 !important;
+}
+
+.cs-info-box p {
+    margin: 0;
+}
+
+.cs-info-box ul {
+    margin: 8px 0 0 0;
+    padding-left: 20px;
+}
+
+.cs-info-box ul li {
+    margin-bottom: 4px;
+}
+
+.cs-info-why {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+}
+
+.cs-info-recommendation {
+    background: #fefce8;
+    border: 1px solid #fde68a;
+}
+
+.cs-info-options {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
 }
 
 /* Custom checkout section */
@@ -8287,6 +8463,10 @@ div#swish-qr-container img
     .cs-checkout-main-container {
         gap: 16px;
     }
+    
+    .cs-package-item-stats{
+        flex-direction: column;
+    }
 }
 .woocommerce .col2-set .col-2, .woocommerce-page .col2-set .col-2{
     width: 100% !important;
@@ -8318,4 +8498,7 @@ button#place_order {
 }
 form#wcfm_membership_registration_form input {
     color: #000;
+}
+#kco-order-review{
+    display: none !important;
 }

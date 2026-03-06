@@ -147,6 +147,7 @@
                 <div class="cs-detail-image">
                     <img id="cs-detail-main-image" src="" alt="">
                 </div>
+                <div class="cs-detail-gallery" id="cs-detail-gallery"></div>
 				<div class="cs-detail-childs">
 					<!-- SKU Box -->
 					<div class="cs-detail-info-box">

@@ -157,7 +157,8 @@ Välj produkt
 `);
 		}
 
-		// Fetch product description via AJAX
+		// Fetch product description and gallery via AJAX
+		$('#cs-detail-gallery').empty();
 		$.ajax({
 			url: csAjax.ajaxurl,
 			type: 'POST',
@@ -172,11 +173,27 @@ Välj produkt
 				} else {
 					$('#cs-detail-description-content').html('<p>Ingen beskrivning tillgänglig.</p>');
 				}
+
+				// Build gallery thumbnails
+				var $gallery = $('#cs-detail-gallery').empty();
+				var galleryImages = (response.success && response.data.gallery_images) ? response.data.gallery_images : [];
+				if (galleryImages.length > 0) {
+					// Add main image as first thumbnail
+					var mainSrc = productData.image;
+					$gallery.append('<div class="cs-gallery-thumb active"><img src="' + mainSrc + '" data-full="' + mainSrc + '" alt=""></div>');
+					galleryImages.forEach(function(img) {
+						$gallery.append('<div class="cs-gallery-thumb"><img src="' + img.thumb + '" data-full="' + img.full + '" alt=""></div>');
+					});
+					$gallery.show();
+				} else {
+					$gallery.hide();
+				}
 			},
 			error: function (xhr, status, error) {
 				console.error('AJAX error:', status, error);
 				console.error('Response:', xhr.responseText);
 				$('#cs-detail-description-content').html('<p>Fel vid hämtning av beskrivning.</p>');
+				$('#cs-detail-gallery').hide();
 			}
 		});
 
@@ -207,6 +224,14 @@ Välj produkt
 		// Back button
 		$('#cs-back-to-products').on('click', function () {
 			hideProductDetail();
+		});
+
+		// Gallery thumbnail click — swap main image
+		$(document).on('click', '.cs-gallery-thumb', function () {
+			var fullSrc = $(this).find('img').data('full');
+			$('#cs-detail-main-image').attr('src', fullSrc);
+			$('.cs-gallery-thumb').removeClass('active');
+			$(this).addClass('active');
 		});
 
 		// Select/Deselect button
@@ -1511,6 +1536,12 @@ Välj fler produkter som kan kombineras från samma leverantör.
 		if (pricingMode === 'custom') {
 			// Use the custom price entered by user
 			customerPays = parseFloat($('#total_amount').val()) || 0;
+			// Enforce minimum RRP
+			var rrpMin = productsWithQuantity.reduce((sum, p) => sum + ((parseFloat(p.rrp) || 0) * (parseInt(p.quantity) || 1)), 0);
+			if (customerPays < rrpMin) {
+				alert('Priset kan inte vara lägre än RRP (' + rrpMin.toFixed(2) + ' kr)');
+				return false;
+			}
 		} else {
 			// Calculate customer pays from RRP (default)
 			customerPays = productsWithQuantity.reduce((sum, p) => {
@@ -2731,29 +2762,61 @@ ${productsHtml}
 		
 		// Package overview section
 		if (data.packages && data.packages.length > 0) {
+			let totalItems = data.packages.reduce((sum, pkg) => sum + pkg.packaging, 0);
 			modalHtml += '<div class="cs-checkout-section cs-package-section">';
-			modalHtml += '<div class="cs-package-header" style="padding: 15px; border-radius: 15px; justify-content: start;">';
-			modalHtml += '<span class="cs-warning-icon">⚠️</span>';
-			modalHtml += '<h3 style="color:white !important; margin: 0 !important">Förpackningsöversikt</h3>';
+			modalHtml += '<div class="cs-package-header">';
+			modalHtml += '<div class="cs-package-header-icon">📦</div>';
+			modalHtml += '<div class="cs-package-header-text">';
+			modalHtml += '<h3>Förpackningsöversikt</h3>';
+			modalHtml += '<p class="cs-package-subtitle">' + data.packages.length + ' produkt' + (data.packages.length > 1 ? 'er' : '') + ' · ' + totalItems + ' st totalt</p>';
 			modalHtml += '</div>';
-			modalHtml += '<div class="cs-package-info">';
-			modalHtml += '<p class="cs-package-notice">' + data.packages.length + ' produkt' + (data.packages.length > 1 ? 'er' : '') + ' · 4-6 st/förp</p>';
+			modalHtml += '</div>';
 			modalHtml += '<div class="cs-package-list">';
 			
 			data.packages.forEach(pkg => {
 				modalHtml += '<div class="cs-package-item">';
-				modalHtml += '<div class="cs-package-info-line">';
-				modalHtml += '<strong>' + pkg.product_name + ' / ' + pkg.box_size + ' st/förp</strong>';
+				modalHtml += '<div class="cs-package-item-name">' + pkg.product_name + ' / ' + pkg.box_size + ' stycken per bukett</div>';
+				modalHtml += '<hr class="cs-package-divider">';
+				modalHtml += '<div class="cs-package-stat-cards">';
+				modalHtml += '<div class="cs-stat-card cs-stat-sold">';
+				modalHtml += '<span class="cs-stat-label">DU HAR SÅLT</span>';
+				modalHtml += '<span class="cs-stat-value">' + pkg.sold + ' <small>st</small></span>';
+				modalHtml += '<span class="cs-stat-sub">Till dina kunder</span>';
 				modalHtml += '</div>';
-				modalHtml += '<div class="cs-package-details">';
-				modalHtml += '<div>Du har sålt: ' + pkg.sold + ' st</div>';
-				modalHtml += '<div>Förp: ' + pkg.packaging + ' st</div>';
-				modalHtml += '<div class="cs-extra-highlight">Överskott:+' + pkg.extra + ' st</div>';
+				modalHtml += '<div class="cs-stat-card cs-stat-delivered">';
+				modalHtml += '<span class="cs-stat-label">DU FÅR LEVERERAT</span>';
+				modalHtml += '<span class="cs-stat-value">' + pkg.packaging + ' <small>st</small></span>';
+				modalHtml += '<span class="cs-stat-sub">Från leverantören</span>';
 				modalHtml += '</div>';
+				modalHtml += '</div>';
+				if (pkg.extra > 0) {
+					modalHtml += '<div class="cs-package-surplus">';
+					modalHtml += '<span class="cs-surplus-icon">⚠</span> Överskott: ' + pkg.extra + ' st';
+					modalHtml += '</div>';
+				}
 				modalHtml += '</div>';
 			});
 			
 			modalHtml += '</div>';
+			modalHtml += '</div>';
+
+			// Informative text about extra products
+			modalHtml += '<div class="cs-checkout-section cs-package-info-section">';
+			modalHtml += '<div class="cs-info-box cs-info-why">';
+			modalHtml += '<h4>🔍 Varför får du extra produkter?</h4>';
+			modalHtml += '<p>Leverantören skickar endast <strong>hela förpackningar</strong>. När det antal du sålt inte går jämnt ut med förpackningsstorleken måste vi runda upp till närmaste hela förpackning.</p>';
+			modalHtml += '</div>';
+			modalHtml += '<div class="cs-info-box cs-info-recommendation">';
+			modalHtml += '<h4>✨ Vår rekommendation</h4>';
+			modalHtml += '<p>Vi rekommenderar att ni antingen <strong>fortsätter sälja</strong> tills ni uppnår en hel förpackning för att undvika överskott, eller <strong>säljer ut de extra produkterna i efterhand</strong> till nya kunder. På så sätt maximerar ni er vinst och minimerar lagerhållning.</p>';
+			modalHtml += '</div>';
+			modalHtml += '<div class="cs-info-box cs-info-options">';
+			modalHtml += '<h4>✅ Du får extra produkter som du kan:</h4>';
+			modalHtml += '<ul>';
+			modalHtml += '<li>Sälja till fler kunder i efterhand</li>';
+			modalHtml += '<li>Behålla som prover</li>';
+			modalHtml += '<li>Ge bort som bonusar</li>';
+			modalHtml += '</ul>';
 			modalHtml += '</div>';
 			modalHtml += '</div>';
 		}
@@ -2771,7 +2834,7 @@ ${productsHtml}
 		modalHtml += '<span>' + parseFloat(data.summary.subtotal).toFixed(2) + ' ' + data.summary.currency + '</span>';
 		modalHtml += '</div>';
 		modalHtml += '<div class="cs-summary-line">';
-		modalHtml += '<span>Moms (25%)</span>';
+		modalHtml += '<span>Moms</span>';
 		modalHtml += '<span>' + parseFloat(data.summary.tax).toFixed(2) + ' ' + data.summary.currency + '</span>';
 		modalHtml += '</div>';
 		modalHtml += '<div class="cs-summary-line">';
@@ -2923,6 +2986,12 @@ ${productsHtml}
 			if (pricingMode === 'custom') {
 				// Use the custom price entered by user
 				customerPays = parseFloat($('#total_amount').val()) || 0;
+				// Enforce minimum RRP
+				var rrpMin = cartItems.reduce((sum, p) => sum + (p.rrp * p.quantity), 0);
+				if (customerPays < rrpMin) {
+					alert('Priset kan inte vara lägre än RRP (' + rrpMin.toFixed(2) + ' kr)');
+					return false;
+				}
 			} else {
 				// Calculate customer pays from RRP (default)
 				customerPays = cartItems.reduce((sum, p) => sum + (p.rrp * p.quantity), 0);
@@ -3399,6 +3468,12 @@ ${product.name} - ${productPrice.toFixed(2)} ${csAjax.currency}
 			if (pricingMode === 'custom') {
 				// Use the custom price entered by user
 				customerPays = parseFloat($('#total_amount').val()) || 0;
+				// Enforce minimum RRP
+				var rrpMin = orderProducts.reduce((sum, p) => sum + (p.rrp * (p.quantity || 1)), 0);
+				if (customerPays < rrpMin) {
+					alert('Priset kan inte vara lägre än RRP (' + rrpMin.toFixed(2) + ' kr)');
+					return false;
+				}
 			} else {
 				// Calculate from RRP (default)
 				customerPays = orderProducts.reduce((sum, p) => sum + (p.rrp * p.quantity), 0);
@@ -3889,12 +3964,28 @@ ${product.image ? `<img src="${product.image}" alt="${product.name}">` : '<svg w
 					$('.cs-pricing-info-rrp').hide();
 					$('.cs-pricing-info-custom').show();
 					$('#total_amount').prop('readonly', false);
-					$('.cs-form-help').text('Ange ditt önskade totalpris');
+					$('.cs-form-help').text('Ange ditt önskade totalpris (minst RRP)');
+					
+					// Set minimum to RRP total
+					var rrpMin = orderProducts.reduce(function(sum, p) { return sum + (p.rrp * p.quantity); }, 0);
+					$('#total_amount').attr('min', rrpMin.toFixed(2));
 					
 					// Keep current value but make it editable
 					$('#total_amount').focus();
 				}
 			});
+
+		// Enforce min RRP on custom price input
+		$(document).on('change blur', '#total_amount', function() {
+			var pricingMode = $('.cs-pricing-card-active').data('pricing-mode') || 'rrp';
+			if (pricingMode === 'custom') {
+				var rrpMin = orderProducts.reduce(function(sum, p) { return sum + (p.rrp * p.quantity); }, 0);
+				var val = parseFloat($(this).val()) || 0;
+				if (val < rrpMin) {
+					$(this).val(rrpMin.toFixed(2));
+				}
+			}
+		});
 
 			// Increase quantity
 			$(document).on('click', '.cs-qty-increase', function () {

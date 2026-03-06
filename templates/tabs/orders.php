@@ -430,10 +430,11 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 5px 25px;
+    padding: 15px 25px;
     background: linear-gradient(90deg, #00a73d 0%, #00c94a 100%);
     cursor: pointer;
     transition: all 0.3s ease;
+    border-radius: 12px;
 }
 
 .cs-package-header:hover {
@@ -524,7 +525,7 @@
  
 .cs-package-item {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     justify-content: space-between;
     background: white;
     border: 2px solid #e0e0e0;

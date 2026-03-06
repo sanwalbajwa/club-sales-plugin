@@ -118,11 +118,12 @@ public static function create_order($sale_ids) {
                     $quantity = isset($product_data['quantity']) ? intval($product_data['quantity']) : 1;
                     
                     // Handle different price fields that might be present
+                    // Prefer total_price (calculated with margin+VAT+rounding) over base price
                     $price = 0;
-                    if (isset($product_data['price'])) {
-                        $price = floatval($product_data['price']);
-                    } elseif (isset($product_data['total_price'])) {
+                    if (isset($product_data['total_price']) && floatval($product_data['total_price']) > 0) {
                         $price = floatval($product_data['total_price']);
+                    } elseif (isset($product_data['price']) && floatval($product_data['price']) > 0) {
+                        $price = floatval($product_data['price']);
                     } elseif (isset($product_data['sale_price'])) {
                         $price = floatval($product_data['sale_price']);
                     }

@@ -2287,7 +2287,22 @@ function cs_get_product_description() {
         $description = '<p>Ingen beskrivning tillgänglig för denna produkt.</p>';
     }
     
+    // Get gallery images
+    $gallery_images = array();
+    $attachment_ids = $product->get_gallery_image_ids();
+    foreach ($attachment_ids as $attachment_id) {
+        $full_url = wp_get_attachment_image_url($attachment_id, 'large');
+        $thumb_url = wp_get_attachment_image_url($attachment_id, 'thumbnail');
+        if ($full_url) {
+            $gallery_images[] = array(
+                'full' => $full_url,
+                'thumb' => $thumb_url ?: $full_url
+            );
+        }
+    }
+    
     wp_send_json_success([
-        'description' => $description
+        'description' => $description,
+        'gallery_images' => $gallery_images
     ]);
 }
