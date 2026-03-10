@@ -957,6 +957,27 @@ function cs_add_vendor_price_update_script() {
             }
         });
         
+        // Update everything when VAT field changes directly
+        $(document).on('input change keyup', '#d04a4a2c8b7ac4a76c18da1a927e7aea, .cs-vat-field-container input, .cs-vat-field-container select', function() {
+            const vatRate = parseFloat($(this).val()) || <?php echo $vat_rate; ?>;
+            const basePrice = $('#regular_price, input[name="regular_price"], #_regular_price').first().val();
+            const totalPrice = calculatePrice(basePrice, vatRate);
+            
+            let rrp = 0;
+            const $rrpField = $('#f0ed791c0fc0a2f5b856a13c88f2882c, .cs-rrp-field-container input');
+            if ($rrpField.length) {
+                rrp = parseFloat($rrpField.val()) || 0;
+            }
+            const profitAmount = rrp - totalPrice;
+            const profitMargin = totalPrice > 0 ? ((rrp - totalPrice) / totalPrice) * 100 : 0;
+            
+            if ($('#cs_above_short_desc').length) {
+                $('#cs_above_short_desc .cs-price-value').text(totalPrice.toFixed(2) + ' SEK');
+                $('#cs_above_short_desc .cs-rrp-value').text(rrp.toFixed(2) + ' SEK');
+                $('#cs_above_short_desc .cs-profit-value').text(profitAmount.toFixed(2) + ' SEK (' + profitMargin.toFixed(1) + '%)');
+            }
+        });
+        
         // Update profit when RRP field changes
         $(document).on('input change keyup', '#f0ed791c0fc0a2f5b856a13c88f2882c, .cs-rrp-field-container input', function() {
             const rrp = parseFloat($(this).val()) || 0;
@@ -1094,12 +1115,23 @@ function cs_add_vendor_price_update_script() {
                         const newValue = $(this).val();
                         $vatInputField.val(newValue).trigger('change');
                         
-                        // Update the price when VAT changes
+                        // Recalculate everything when VAT changes
                         const basePrice = $('#regular_price, input[name="regular_price"], #_regular_price').val();
-                        const totalPrice = calculatePrice(basePrice, newValue);
+                        const totalPrice = calculatePrice(basePrice, parseFloat(newValue));
                         
-                        // Update the display
-                        $('#cs_above_short_desc .cs-price-value').text(totalPrice.toFixed(2) + ' SEK');
+                        let rrp = 0;
+                        const $rrpField = $('#f0ed791c0fc0a2f5b856a13c88f2882c, .cs-rrp-field-container input');
+                        if ($rrpField.length) {
+                            rrp = parseFloat($rrpField.val()) || 0;
+                        }
+                        const profitAmount = rrp - totalPrice;
+                        const profitMargin = totalPrice > 0 ? ((rrp - totalPrice) / totalPrice) * 100 : 0;
+                        
+                        if ($('#cs_above_short_desc').length) {
+                            $('#cs_above_short_desc .cs-price-value').text(totalPrice.toFixed(2) + ' SEK');
+                            $('#cs_above_short_desc .cs-rrp-value').text(rrp.toFixed(2) + ' SEK');
+                            $('#cs_above_short_desc .cs-profit-value').text(profitAmount.toFixed(2) + ' SEK (' + profitMargin.toFixed(1) + '%)');
+                        }
                     });
                     
                     // Hide original VAT field

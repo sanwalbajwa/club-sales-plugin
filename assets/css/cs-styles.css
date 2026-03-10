@@ -8502,3 +8502,6 @@ form#wcfm_membership_registration_form input {
 #kco-order-review{
     display: none !important;
 }
+textarea#product_tags, p.description.wcfm_full_ele.wcfm_side_tag_cloud.wcfm_fetch_tag_cloud, p.product_tags.wcfm_title.wcfm_full_ele.product_tags_ele {
+    display: none !important;
+}

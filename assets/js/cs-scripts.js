@@ -833,9 +833,7 @@ ${imageHtml}
 
 			const productUrl = product.permalink || `${csAjax.siteUrl}/product/${product.id}`;
 
-			// Truncate title to 3 words
-			const words = product.name.split(' ');
-			const truncatedTitle = words.length > 3 ? words.slice(0, 3).join(' ') + '...' : product.name;
+			const truncatedTitle = product.name;
 
 			// Check if product can be combined
 			const canBeCombined = product.can_be_combined === true || product.can_be_combined === 'yes' || product.can_be_combined === 1;
