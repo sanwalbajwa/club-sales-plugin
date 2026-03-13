@@ -278,6 +278,13 @@ public static function handle_product_search() {
             }
             
             error_log('✅ Returning ' . count($results) . ' assigned products for child user');
+            
+            // Apply search term filter for child users
+            if (!empty($search_term)) {
+                $results = array_values(array_filter($results, function($p) use ($search_term) {
+                    return stripos($p['name'], $search_term) !== false;
+                }));
+            }
         } else {
             // Parent users: search all products
             $results = CS_Sales::search_products($search_term, $category);

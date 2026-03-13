@@ -373,7 +373,7 @@ function cs_login_registration_form() {
         color: white !important;
         border: none !important;
         padding: 20px 24px !important;
-        border-radius: 9999px !important;
+        border-radius: 11px !important;
         cursor: pointer !important;
         font-size: 15px !important;
         font-weight: 500 !important;

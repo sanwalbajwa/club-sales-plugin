@@ -111,6 +111,12 @@ public static function search_products($search_term = '', $category = '') {
     $query .= " WHERE p.post_type = 'product' 
         AND p.post_status = 'publish'
         AND (pm_stock_status.meta_value IS NULL OR pm_stock_status.meta_value != 'outofstock')";
+
+    // Add search term filter
+    if (!empty($search_term)) {
+        $like = '%' . $wpdb->esc_like($search_term) . '%';
+        $query .= $wpdb->prepare(" AND p.post_title LIKE %s", $like);
+    }
     
     // Exclude products from kafeteria category and its children
     $kafeteria_term = get_term_by('slug', 'kafeteria', 'product_cat');

@@ -1811,10 +1811,7 @@ Välj fler produkter som kan kombineras från samma leverantör.
 	}
 
 	// Toggle collapse functionality
-	$(document).on('click', '#cs-package-toggle, .cs-package-header', function(e) {
-		if ($(e.target).closest('button').length && !$(e.target).is('.cs-package-header')) {
-			return;
-		}
+	$(document).on('click', '.cs-package-header', function(e) {
 		$('.cs-package-overview-container').toggleClass('collapsed');
 		// Toggle info alert
 		if ($('.cs-package-overview-container').hasClass('collapsed')) {
