@@ -788,15 +788,15 @@ function cs_display_price_above_short_description() {
                 const priceHtml = `
                     <div class="cs-calculated-price-above-desc" id="cs_above_short_desc">
                         <div class="cs-admin-price-line">
-                            <span>Customer pays:</span>
+                            <span><?php _e("Customer pays:", "club-sales"); ?></span>
                             <span class="cs-price-value"><?php echo number_format($rounded_total_price, 2) . ' SEK'?></span>
                         </div>
                         <div class="cs-admin-price-line">
-                            <span>Recommended Retail Price:</span>
+                            <span><?php _e("Recommended Retail Price:", "club-sales"); ?></span>
                             <span class="cs-rrp-value"><?php echo number_format($rrp, 2) . ' SEK'?></span>
                         </div>
                         <div class="cs-admin-price-line">
-                            <span>Profit margin per sale:</span>
+                            <span><?php _e("Profit margin per sale:", "club-sales"); ?></span>
                             <span class="cs-profit-value"><?php echo number_format($profit_amount, 2) . ' SEK (' . number_format($profit_margin, 1) . '%)'?></span>
                         </div>
                     </div>
@@ -1033,8 +1033,7 @@ function cs_add_vendor_price_update_script() {
             const $rrpContainer = $('<div class="cs-rrp-field-container"></div>');
             
             // Create RRP label
-            const $rrpLabel = $('<div class="cs-field-label"><strong>Retail Price</strong></div>');
-            
+            const $rrpLabel = $('<div class="cs-field-label"><strong><?php _e("Retail Price", "club-sales"); ?></strong></div>');            
             // Clone the RRP input
             const $rrpInputClone = $rrpInputField.clone();
             
@@ -1098,7 +1097,7 @@ function cs_add_vendor_price_update_script() {
                     const $vatContainer = $('<div class="cs-vat-field-container"></div>');
                     
                     // Create VAT label
-                    const $vatLabel = $('<div class="cs-field-label"><strong>VAT Rate</strong></div>');
+                    const $vatLabel = $('<div class="cs-field-label"><strong><?php _e("VAT Rate", "club_sales"); ?></strong></div>');
                     
                     // Clone the VAT input
                     const $vatInputClone = $vatInputField.clone();

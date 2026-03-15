@@ -5888,7 +5888,7 @@ button.cs-remove-product-btn {
 }
 
 .cs-products-sidebar {
-    width: 250px;
+    width: 30%;
     flex-shrink: 0;
     background: #fff;
     padding: 15px;
@@ -5898,7 +5898,7 @@ button.cs-remove-product-btn {
 
 .cs-products-main {
     flex-grow: 1;
-    width: 100%;
+    width: 70%;
 }
 
 .cs-filter-header {
@@ -6453,12 +6453,40 @@ button.cs-remove-product-btn {
 /* Responsive */
 @media (max-width: 768px) {
     .cs-cart-widget {
+        width: auto;
         bottom: 90px;
-        right: 20px;
+        right: 12px;
+        transform: none;
+    }
+
+    .cs-cart-widget.collapsed {
+        right: -4px;
+        bottom: 15%;
+        transform: translateY(50%);
+    }
+
+    .cs-cart-widget.collapsed .cs-cart-fab {
+        padding: 10px 10px 10px 12px;
+        border-radius: 18px 0 0 18px;
+        gap: 0;
+    }
+
+    .cs-cart-widget.collapsed .cs-cart-fab-label,
+    .cs-cart-widget.collapsed .cs-cart-fab .cs-toggle-icon {
+        display: none;
+    }
+
+    .cs-cart-widget.collapsed .cs-cart-icon-wrapper {
+        width: 36px;
+        height: 36px;
+    }
+
+    .cs-cart-widget.collapsed .cs-cart-fab:hover {
+        transform: none;
     }
 
     .cs-cart-popup {
-        width: 300px;
+        width: min(300px, calc(100vw - 24px));
     }
 }
 .cs-cart-item-view svg {
@@ -8504,4 +8532,53 @@ form#wcfm_membership_registration_form input {
 }
 textarea#product_tags, p.description.wcfm_full_ele.wcfm_side_tag_cloud.wcfm_fetch_tag_cloud, p.product_tags.wcfm_title.wcfm_full_ele.product_tags_ele {
     display: none !important;
+}
+/* --------------------------------------------------------------------------
+   iOS Safari fix — input[type="date"] showing blank
+   -------------------------------------------------------------------------- */
+
+/* Force iOS to show the date value text */
+form#cs-order-form input#sale_date,
+input[type="date"]#sale_date {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  min-height: 44px !important;
+  line-height: 1.5 !important;
+}
+
+/* Target the WebKit internal date text rendering */
+input#sale_date::-webkit-date-and-time-value {
+  text-align: left !important;
+  color: #000 !important;
+}
+
+input#sale_date::-webkit-datetime-edit {
+  color: #000 !important;
+  padding: 0 !important;
+}
+
+input#sale_date::-webkit-datetime-edit-fields-wrapper {
+  color: #000 !important;
+}
+
+input#sale_date::-webkit-datetime-edit-text,
+input#sale_date::-webkit-datetime-edit-month-field,
+input#sale_date::-webkit-datetime-edit-day-field,
+input#sale_date::-webkit-datetime-edit-year-field {
+  color: #000 !important;
+}
+
+/* Also fix the edit modal date field */
+input#edit-sale-date::-webkit-date-and-time-value {
+  text-align: left !important;
+  color: #000 !important;
+}
+
+input#edit-sale-date::-webkit-datetime-edit,
+input#edit-sale-date::-webkit-datetime-edit-fields-wrapper,
+input#edit-sale-date::-webkit-datetime-edit-text,
+input#edit-sale-date::-webkit-datetime-edit-month-field,
+input#edit-sale-date::-webkit-datetime-edit-day-field,
+input#edit-sale-date::-webkit-datetime-edit-year-field {
+  color: #000 !important;
 }
